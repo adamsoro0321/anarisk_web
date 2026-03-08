@@ -1,0 +1,9 @@
+connexion et profile
+amelioration du tableau 
+Les tableau de bord
+Execution
+Les fiche individuelles
+
+=========affectation brigade =======
+1.affectation brigade
+2.generation de fiche
