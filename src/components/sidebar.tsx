@@ -98,16 +98,16 @@ const menuItems: MenuItem[] = [
     icon: <PeopleIcon />,
     subItems: [
       { title: "Pre-liste", path: "/contribuables", icon: <ListAltIcon /> },
-     // { title: "Recherche avancée", path: "/contribuables/", icon: <ContribuableDetail /> },
+      { title: "Programmes", path: "/contribuables/programmes", icon: <AccountBalanceIcon /> },
     //  { title: "Recherche avancée", path: "/contribuables/search", icon: <PersonSearchIcon /> },
-      { title: "Profils à risque", path: "/contribuables/risques", icon: <AssessmentIcon /> },
+      { title: "Profils risque", path: "/contribuables/risques", icon: <AssessmentIcon /> },
     ],
   },
   {
-    title: "Programmes",
+    title: "Fiches",
     icon: <FolderSpecialIcon />,
     subItems: [
-      { title: "Liste des programmes", path: "/programmes", icon: <ListAltIcon /> },
+      { title: "fiches", path: "/fiches", icon: <ListAltIcon /> },
       //{ title: "Recherche avancée", path: "/programmes/search", icon: <PersonSearchIcon /> },
      // { title: "Profils à risque", path: "/programmes/risques", icon: <AssessmentIcon /> },
     ],

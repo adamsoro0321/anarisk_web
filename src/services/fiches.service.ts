@@ -178,7 +178,7 @@ interface ContribuableFilesResponse extends ApiResponse<ContribuableFiles> {
 // ========== SERVICE ==========
 
 class ProgrammeService {
-  private baseUrl = "/programmes";
+  private baseUrl = "/fiches";
 
   // ========== NIVEAU 0: PROGRAMMES ==========
 

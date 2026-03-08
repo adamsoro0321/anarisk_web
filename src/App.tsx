@@ -23,10 +23,11 @@ import IndicateursImportExport from "./pages/indicateurs/IndicateursImportExport
 import IndicateursComptabilite from "./pages/indicateurs/IndicateursComptabilite";
 
 // Programmes pages
-import ProgrammesList from './pages/programmes/ProgrammesList';
+import FichesList from './pages/fiches/fiche';
 import Parametres from './pages/parametres/parametre';
 import BrigadesPage from './pages/parametres/BrigadesPage';
 import QuantumesPage from './pages/parametres/QuantumesPage';
+import ContribuablesProgrammes from "./pages/contribuables/ContribuablesProgrammes";
 
 const MainLayout = () => {
   return (
@@ -82,12 +83,13 @@ function App() {
                 // Contribuables routes
                 { path: "contribuables", element: <ContribuablesList /> },
                 { path: "contribuables/search", element: <ContribuablesSearch /> },
+                { path: "contribuables/programmes", element: <ContribuablesProgrammes /> },
                 { path: "contribuables/risques", element: <ContribuableDetail /> },
                 { path: "contribuables/detail", element: <ContribuableDetail /> },
                 { path: "contribuables/detail/:ifu", element: <ContribuableDetail /> },
                 
                 // Programmes routes
-                { path: "programmes", element: <ProgrammesList /> },
+                { path: "fiches", element: <FichesList /> },
                 
                 // Indicateurs routes
                 { path: "indicateurs/tva", element: <IndicateursTVA /> },

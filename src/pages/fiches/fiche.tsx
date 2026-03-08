@@ -38,7 +38,7 @@ import {
   NavigateNext as NavigateNextIcon,
 } from "@mui/icons-material";
 
-import programmeService from "../../services/programme.service";
+import programmeService from "../../services/fiches.service";
 import type {
   Programme,
   Structure,
@@ -46,7 +46,7 @@ import type {
   Brigade,
   FileInfo,
   ContribuableFiles,
-} from "../../services/programme.service";
+} from "../../services/fiches.service";
 
 // Palette DGI Burkina Faso
 const dgiColors = {
@@ -233,7 +233,7 @@ const FileCard: React.FC<FileCardProps> = ({ file, onDownload }) => {
 };
 
 // Composant principal
-const ProgrammesList: React.FC = () => {
+const FichesList: React.FC = () => {
   // États
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -792,4 +792,4 @@ const ProgrammesList: React.FC = () => {
   );
 };
 
-export default ProgrammesList;
+export default FichesList;

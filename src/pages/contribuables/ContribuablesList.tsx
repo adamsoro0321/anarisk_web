@@ -8,7 +8,11 @@ import {
   Alert,
   Button,
   Menu,
-  MenuItem
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Snackbar
 } from "@mui/material";
 import { 
   Warning as WarningIcon,
@@ -16,11 +20,13 @@ import {
   Refresh as RefreshIcon,
   ViewComfy as ViewComfyIcon,
   ViewColumn as ViewColumnIcon,
-  FilterList as FilterListIcon
+  FilterList as FilterListIcon,
+  Download as DownloadIcon
 } from "@mui/icons-material";
 import { useEffect, useState, useMemo, useCallback } from "react";
 // @ts-expect-error - API.js n'a pas de déclaration TypeScript
 import { API } from "../../api/API.js";
+import QuantumeService, { type QuantumeItem } from "../../services/quantume.service";
 import { 
   DataGrid,
   useGridApiContext,
@@ -395,8 +401,23 @@ const ContribuablesList = () => {
   const [riskData, setRiskData] = useState<RiskDataRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchText, setSearchText] = useState('');
+
+  const [quantume, setQuantume] = useState<QuantumeItem[]>([]);
+  const [selectedQuantume, setSelectedQuantume] = useState<number | string>('');
+  const [loadingQuantume, setLoadingQuantume] = useState(false);
+  const [downloadingQuantume, setDownloadingQuantume] = useState(false);
   
+  // États pour les notifications
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info' | 'warning';
+  }>({
+    open: false,
+    message: '',
+    severity: 'info',
+  });
+
   // État pour la pagination serveur
   const [paginationModel, setPaginationModel] = useState({
     page: 0, // MUI DataGrid utilise un index 0-based
@@ -432,8 +453,18 @@ const fetchRiskData = useCallback(async (page: number, pageSize: number) => {
   setLoading(true);
   setError(null);
   try {
-    // Envoyer les paramètres de pagination à l'API (page est 1-based côté serveur)
-    const response = await API.get(`/risk-data?page=${page + 1}&per_page=${pageSize}`);
+    // Récupérer le libellé du quantum sélectionné
+    const quantumeLibelle = selectedQuantume 
+      ? quantume.find(q => q.id === selectedQuantume)?.libelle 
+      : '';
+    
+    // Construire l'URL avec le paramètre libelle_quantume si un quantum est sélectionné
+    let url = `/risk-data?page=${page + 1}&per_page=${pageSize}`;
+    if (quantumeLibelle) {
+      url += `&libelle_quantume=${encodeURIComponent(quantumeLibelle)}`;
+    }
+    
+    const response = await API.get(url);
       if (response?.status === 200 && response?.data) {
       // Parser la réponse
       const data: RiskDataRow[] = response.data?.data.map((item: any, index: number) => ({
@@ -464,16 +495,102 @@ const fetchRiskData = useCallback(async (page: number, pageSize: number) => {
   } finally {
     setLoading(false);
   }
+}, [selectedQuantume, quantume]);
+
+// Fonction pour récupérer la liste des quantumes
+const fetchQuantume = useCallback(async () => {
+  setLoadingQuantume(true);
+  try {
+    const response = await QuantumeService.getAll();
+    if (response.success && response.data) {
+      setQuantume(response.data);
+    }
+  } catch (err) {
+    console.error('Erreur lors de la récupération des quantumes:', err);
+  } finally {
+    setLoadingQuantume(false);
+  }
 }, []);
 
-  // Charger les données quand la pagination change
+// Fonction pour télécharger les données du quantum sélectionné
+const handleDownloadRiskData = useCallback(async (quantumeId: number | string) => {
+  if (!quantumeId) return;
+  
+  setDownloadingQuantume(true);
+  try {
+    // Récupérer le libellé du quantum
+    const quantumeItem = quantume.find(q => q.id === quantumeId);
+    if (!quantumeItem) {
+      setSnackbar({
+        open: true,
+        message: 'Quantum non trouvé',
+        severity: 'error',
+      });
+      return;
+    }
+    
+    const libelleQuantume = quantumeItem.libelle;
+    const url = `/risk-data/download/${encodeURIComponent(libelleQuantume)}`;
+    
+    // Appel à l'API avec responseType blob pour télécharger le fichier
+    const response = await API.get(url, {
+      responseType: 'blob'
+    });
+    
+    // Créer un lien de téléchargement
+    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `${libelleQuantume}_risk_data.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+    
+    setSnackbar({
+      open: true,
+      message: `Données du quantum "${libelleQuantume}" téléchargées avec succès`,
+      severity: 'success',
+    });
+  } catch (err: any) {
+    console.error('Erreur lors du téléchargement des données de risque:', err);
+    const errorMessage = err.response?.data?.message || err.message || 'Erreur lors du téléchargement des données';
+    setSnackbar({
+      open: true,
+      message: errorMessage,
+      severity: 'error',
+    });
+  } finally {
+    setDownloadingQuantume(false);
+  }
+}, [quantume]); 
+
+  // Charger les quantumes au montage du composant
+  useEffect(() => {
+    fetchQuantume();
+  }, [fetchQuantume]);
+
+  // Charger les données quand la pagination change OU quand le quantum sélectionné change
   useEffect(() => {
     fetchRiskData(paginationModel.page, paginationModel.pageSize);
   }, [fetchRiskData, paginationModel.page, paginationModel.pageSize]);
+  
+  // Réinitialiser la pagination quand on change de quantum
+  useEffect(() => {
+    if (selectedQuantume) {
+      setPaginationModel(prev => ({ page: 0, pageSize: prev.pageSize }));
+    }
+  }, [selectedQuantume]);
 
   // Gérer le changement de pagination
   const handlePaginationModelChange = (newModel: { page: number; pageSize: number }) => {
     setPaginationModel(newModel);
+  };
+  
+  // Fermer le snackbar
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
   };
 
 
@@ -612,6 +729,87 @@ const fetchRiskData = useCallback(async (page: number, pageSize: number) => {
     <Box sx={{ maxWidth: '100%', 
       width: '100%', 
       overflow: 'hidden' }}>
+        {/** dropdown selection du programme */}
+        <Paper
+          sx={{
+            p: 2,
+            mb: 2,
+            borderRadius: 2,
+            border: `1px solid ${dgiColors.neutral[200]}`,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <FormControl fullWidth size="small" sx={{ maxWidth: 400 }}>
+              <InputLabel id="quantume-select-label">Sélectionner un quantum</InputLabel>
+              <Select
+                labelId="quantume-select-label"
+                id="quantume-select"
+                value={selectedQuantume}
+                label="Sélectionner un quantum"
+                onChange={(e) => setSelectedQuantume(e.target.value)}
+                disabled={loadingQuantume}
+                sx={{
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: dgiColors.primary.main,
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: dgiColors.primary.dark,
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: dgiColors.primary.main,
+                  },
+                }}
+              >
+                <MenuItem value="">
+                  <em>-- Sélectionner --</em>
+                </MenuItem>
+                {quantume.map((q) => (
+                  <MenuItem key={q.id} value={q.id}>
+                    {q.libelle} {q.date_creation && `(${new Date(q.date_creation).toLocaleDateString('fr-FR')})`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {loadingQuantume && <CircularProgress size={24} sx={{ color: dgiColors.primary.main }} />}
+            {selectedQuantume && (
+              <Chip
+                label={`Quantum sélectionné: ${quantume.find(q => q.id === selectedQuantume)?.libelle || ''}`}
+                color="primary"
+                onDelete={() => setSelectedQuantume('')}
+                sx={{
+                  backgroundColor: dgiColors.primary.main,
+                  color: '#fff',
+                  fontWeight: 600,
+                }}
+              />
+            )}
+            {/**download quantum */}
+            {selectedQuantume && (
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={downloadingQuantume ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : <DownloadIcon />}
+                onClick={() => handleDownloadRiskData(selectedQuantume)}
+                disabled={downloadingQuantume}
+                sx={
+                  {
+                  backgroundColor: dgiColors.primary.main,
+                  color: '#fff',
+                  fontWeight: 600,
+                  '&:hover': {
+                    backgroundColor: dgiColors.primary.dark,
+                  },
+                  '&.Mui-disabled': {
+                    backgroundColor: alpha(dgiColors.primary.main, 0.5),
+                    color: '#fff',
+                  },
+                }}
+              >
+                {downloadingQuantume ? 'Téléchargement...' : 'Télécharger les données'}
+              </Button>
+            )}
+          </Box>
+        </Paper>
       {/* DataGrid */}
       <Paper
         sx={{
@@ -806,6 +1004,22 @@ const fetchRiskData = useCallback(async (page: number, pageSize: number) => {
         onClose={handleCloseModal}
         numIFU={selectedIFU}
       />
+      
+      {/* Snackbar pour les notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
