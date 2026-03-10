@@ -5,18 +5,18 @@ import {
   Button,
   alpha,
   CircularProgress,
-  Card,
-  CardContent,
   Chip,
   Snackbar,
   Alert,
   LinearProgress,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
   IconButton,
   Tooltip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from "@mui/material";
 import {
   Upload as UploadIcon,
@@ -26,7 +26,7 @@ import {
   Error as ErrorIcon,
   Info as InfoIcon,
   Download as DownloadIcon,
-  PlaylistAdd as GenerateIcon,
+  PlayArrow as GenerateIcon,
 } from "@mui/icons-material";
 import { useEffect, useState, useCallback, useRef } from "react";
 // @ts-expect-error - API.js n'a pas de déclaration TypeScript
@@ -272,18 +272,6 @@ const ContribuablesProgrammes = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString('fr-FR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
   return (
     <Box sx={{ maxWidth: '100%', width: '100%', p: 3 }}>
       {/* En-tête */}
@@ -468,106 +456,86 @@ const ContribuablesProgrammes = () => {
             </Typography>
           </Paper>
         ) : (
-          <Box
+          <TableContainer
+            component={Paper}
             sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(2, 1fr)',
-                md: 'repeat(3, 1fr)',
-              },
-              gap: 2,
+              borderRadius: 2,
+              border: `1px solid ${dgiColors.neutral[200]}`,
             }}
           >
-            {programmes.map((programme) => (
-              <Card
-                key={programme.name}
-                sx={{
-                    height: '100%',
-                    borderRadius: 2,
-                    border: `1px solid ${dgiColors.neutral[200]}`,
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      boxShadow: `0 4px 20px ${alpha(dgiColors.primary.main, 0.15)}`,
-                      transform: 'translateY(-4px)',
-                      borderColor: dgiColors.primary.main,
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
-                      <DescriptionIcon sx={{ color: dgiColors.primary.main, fontSize: 24 }} />
+            <Table>
+              <TableHead>
+                <TableRow sx={{ backgroundColor: dgiColors.neutral[50] }}>
+                  <TableCell sx={{ fontWeight: 600, color: dgiColors.neutral[900] }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <DescriptionIcon sx={{ fontSize: 20, color: dgiColors.primary.main }} />
+                      Nom du fichier
+                    </Box>
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, color: dgiColors.neutral[900] }}>
+                    Actions
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {programmes.map((programme) => (
+                  <TableRow
+                    key={programme.name}
+                    sx={{
+                      '&:hover': {
+                        backgroundColor: alpha(dgiColors.primary.main, 0.05),
+                      },
+                    }}
+                  >
+                    <TableCell>
                       <Typography
-                        variant="h6"
                         sx={{
-                          fontWeight: 600,
+                          fontWeight: 500,
                           color: dgiColors.neutral[900],
-                          fontSize: '0.9rem',
-                          wordBreak: 'break-word',
                         }}
                       >
                         {programme.name}
                       </Typography>
-                    </Box>
-
-                    <Divider sx={{ my: 1.5 }} />
-
-                    <List dense disablePadding>
-                      <ListItem disablePadding>
-                        <ListItemText
-                          primary="Date de modification"
-                          secondary={formatDate(programme.modified_date)}
-                          primaryTypographyProps={{
-                            variant: 'body2',
-                            color: 'textSecondary',
-                            fontSize: '0.75rem',
-                          }}
-                          secondaryTypographyProps={{
-                            variant: 'body2',
-                            color: 'textPrimary',
-                            fontWeight: 600,
-                            fontSize: '0.8rem',
-                          }}
-                        />
-                      </ListItem>
-                    </List>
-
-                    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 1.5 }}>
-                      <Tooltip title="Télécharger le fichier">
-                        <IconButton
-                          size="medium"
-                          sx={{
-                            backgroundColor: dgiColors.primary.main,
-                            color: 'white',
-                            '&:hover': {
-                              backgroundColor: dgiColors.primary.dark,
-                            },
-                          }}
-                          onClick={() => handleDownloadProgramme(programme.name)}
-                        >
-                          <DownloadIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Générer les fiches">
-                        <IconButton
-                          size="medium"
-                          sx={{
-                            backgroundColor: dgiColors.accent.main,
-                            color: 'white',
-                            '&:hover': {
-                              backgroundColor: dgiColors.accent.light,
-                            },
-                          }}
-                          onClick={() => handleGenerateFiches(programme.name)}
-                        >
-                          <GenerateIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </CardContent>
-                </Card>
-            ))}
-          </Box>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+                        <Tooltip title="Télécharger le fichier">
+                          <IconButton
+                            size="small"
+                            sx={{
+                              backgroundColor: dgiColors.primary.main,
+                              color: 'white',
+                              '&:hover': {
+                                backgroundColor: dgiColors.primary.dark,
+                              },
+                            }}
+                            onClick={() => handleDownloadProgramme(programme.name)}
+                          >
+                            <DownloadIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Générer les fiches">
+                          <IconButton
+                            size="small"
+                            sx={{
+                              backgroundColor: dgiColors.accent.main,
+                              color: 'white',
+                              '&:hover': {
+                                backgroundColor: dgiColors.accent.light,
+                              },
+                            }}
+                            onClick={() => handleGenerateFiches(programme.name)}
+                          >
+                            <GenerateIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
       </Box>
 
