@@ -1,42 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Box, Typography, Card, CardActionArea, CardContent, alpha,
+  Box, Typography, Card,  alpha,
   Button, CircularProgress, Alert, Divider, FormControl,
   InputLabel, Select, MenuItem,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import DomainIcon from '@mui/icons-material/Domain';
-import CalendarViewWeekIcon from '@mui/icons-material/CalendarViewWeek';
-import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import { dgiColors } from './_dgiColors';
 import QuantumeService, { type QuantumeItem } from '../../services/quantume.service';
 
-interface NavCard {
-  label: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  path: string;
-}
 
-const cards: NavCard[] = [
-  {
-    label: 'Brigades',
-    subtitle: 'Créer, modifier et supprimer les brigades de contrôle fiscal',
-    icon: <DomainIcon sx={{ fontSize: 36, color: dgiColors.primary.main }} />,
-    path: '/parametres/brigades',
-  },
-  {
-    label: 'Quantumes',
-    subtitle: 'Gérer les périodes de programmation des contrôles',
-    icon: <CalendarViewWeekIcon sx={{ fontSize: 36, color: dgiColors.primary.main }} />,
-    path: '/parametres/quantumes',
-  },
-];
+
+
 
 const Parametres: React.FC = () => {
-  const navigate = useNavigate();
 
   // --- Pré-liste state ---
   const [quantumes, setQuantumes]             = useState<QuantumeItem[]>([]);
@@ -184,47 +161,7 @@ const Parametres: React.FC = () => {
         </Box>
       </Card>
 
-      {/* Cartes de navigation */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-        {cards.map((card) => (
-          <Card
-            key={card.path}
-            elevation={0}
-            sx={{
-              border: '1px solid', borderColor: dgiColors.neutral[200],
-              borderRadius: 2, transition: 'box-shadow 0.2s, border-color 0.2s',
-              '&:hover': {
-                boxShadow: `0 4px 16px ${alpha(dgiColors.primary.main, 0.15)}`,
-                borderColor: dgiColors.primary.main,
-              },
-            }}
-          >
-            <CardActionArea onClick={() => navigate(card.path)} sx={{ p: 0 }}>
-              <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 3 }}>
-                <Box
-                  sx={{
-                    p: 1.5, borderRadius: 2,
-                    bgcolor: alpha(dgiColors.primary.main, 0.08),
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  {card.icon}
-                </Box>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="h6" fontWeight={700} color={dgiColors.primary.main}>
-                    {card.label}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                    {card.subtitle}
-                  </Typography>
-                </Box>
-                <ArrowForwardIosIcon sx={{ fontSize: 16, color: dgiColors.neutral[700], flexShrink: 0 }} />
-              </CardContent>
-            </CardActionArea>
-          </Card>
-        ))}
-      </Box>
+     
     </Box>
   );
 };

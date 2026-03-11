@@ -147,13 +147,29 @@ const Login = () => {
 
               {/* Contenu du panneau gauche */}
               <Box sx={{ position: "relative", zIndex: 1, textAlign: "center" }}>
-                <AccountBalanceIcon
+                <Box
                   sx={{
-                    fontSize: 64,
-                    color: dgiColors.accent.main,
+                    width: 70,
+                    height: 70,
+                    borderRadius: "50%",
+                    backgroundColor: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    mx: "auto",
                     mb: 3,
+                    padding: 1,
                   }}
-                />
+                >
+                  <img
+                    src={dgi_logo}
+                    alt="DGI Logo"
+                    style={{
+                      width: "60px",
+                      height: "60px",
+                    }}
+                  />
+                </Box>
                 <Typography
                   variant="h4"
                   sx={{
@@ -163,7 +179,7 @@ const Login = () => {
                     letterSpacing: 1,
                   }}
                 >
-                  ANARISK
+                  ANARISQ
                 </Typography>
                 <Typography
                   variant="body1"

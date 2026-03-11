@@ -33,6 +33,8 @@ import {
   ShowChart as ShowChartIcon,
   FolderSpecial as FolderSpecialIcon,
   Settings as SettingsIcon,
+  Business as BusinessIcon,
+  Category as CategoryIcon,
 } from "@mui/icons-material";
 import useAuthStore from "../store/authStore";
 import dgi_logo from "../assets/dgi_logo.png"
@@ -123,19 +125,14 @@ const menuItems: MenuItem[] = [
   },
 ];
 
-const gestionUser = {
-  title: "Utilisateurs",
-  icon: <PeopleIcon />,
-  subItems: [
-    { title: "Liste des utilisateurs", path: "/users", icon: <ListAltIcon /> },
-  ],
-};
-
 const parameItems = {
   title: "Paramètres",  
   icon: <SettingsIcon />,
   subItems: [
-    { title: "Données", path: "/parametres", icon: <SettingsIcon /> }
+    { title: "Données", path: "/parametres", icon: <SettingsIcon /> },
+    { title: "Brigades", path: "/parametres/brigades", icon: <BusinessIcon /> },
+    { title: "Quantumes", path: "/parametres/quantumes", icon: <CategoryIcon /> },
+    { title: "Utilisateurs", path: "/users", icon: <PeopleIcon /> },
   ],
 };
 const drawerWidth = 280;
@@ -181,8 +178,7 @@ const Sidebar: React.FC = () => {
   if (!user) {
     return null; // Ne pas afficher le sidebar si l'utilisateur n'est pas connecté
   }
- if (user.role === "admin" && !menuItems.some((item) => item.title === gestionUser.title)) {
-    menuItems.push(gestionUser);
+  if (user.role === "admin" && !menuItems.some((item) => item.title === parameItems.title)) {
     menuItems.push(parameItems);
   }
   return (
