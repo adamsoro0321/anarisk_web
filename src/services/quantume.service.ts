@@ -25,6 +25,41 @@ export interface QuantumeGenerateResponse {
   status_url?: string;
 }
 
+export interface TaskItem {
+  task_id: string;
+  name: string;
+  state: 'ACTIVE' | 'RESERVED' | 'SCHEDULED';
+  worker: string | null;
+  time_start: number | null;
+}
+
+export interface TaskListResponse {
+  success: boolean;
+  count: number;
+  data: TaskItem[];
+}
+
+export interface TaskStatusResponse {
+  success: boolean;
+  task_id: string;
+  state: string;
+  status?: string;
+  current?: number;
+  total?: number;
+  percent?: number;
+  result?: Record<string, unknown>;
+  error?: string;
+}
+
+export interface RevokeTaskResponse {
+  success: boolean;
+  task_id: string;
+  state: string;
+  terminate: boolean;
+  lock_released: boolean;
+  message: string;
+}
+
 export class QuantumeService {
   static async getAll(): Promise<QuantumeListResponse> {
     const response = await API.get<QuantumeListResponse>('/quantumes');
@@ -57,12 +92,24 @@ export class QuantumeService {
    * @param quantumeId  id du quantum sélectionné
    * @param quantumeLibelle  libellé du quantum (transmis au backend pour traçabilité)
    */
-  static async generate(quantumeId: number, quantumeLibelle: string): Promise<QuantumeGenerateResponse> {
-    const response = await API.post<QuantumeGenerateResponse>('/generate_quantume', {
-      quantume_id: quantumeId,
-      quantume: quantumeLibelle,
-    });
+  static async generate(quantumeLibelle: string): Promise<QuantumeGenerateResponse> {
+    const response = await API.post<QuantumeGenerateResponse>(`/generate_quantume?quantume=${encodeURIComponent(quantumeLibelle)}`);
     return response.data;
+  }
+
+  static async getTasks(): Promise<TaskListResponse> {
+    const res = await API.get<TaskListResponse>('/run/tasks');
+    return res.data;
+  }
+
+  static async getTaskStatus(taskId: string): Promise<TaskStatusResponse> {
+    const res = await API.get<TaskStatusResponse>(`/run/status/${taskId}`);
+    return res.data;
+  }
+
+  static async revokeTask(taskId: string, terminate = false): Promise<RevokeTaskResponse> {
+    const res = await API.post<RevokeTaskResponse>(`/revoke/${taskId}`, { terminate });
+    return res.data;
   }
 }
 

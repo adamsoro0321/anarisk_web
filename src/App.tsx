@@ -14,13 +14,11 @@ import DashboardAnalyses from "./pages/dashboard/DashboardAnalyses";
 // Contribuables pages
 import ContribuablesList from "./pages/contribuables/ContribuablesList";
 import ContribuablesSearch from "./pages/contribuables/ContribuablesSearch";
-import ContribuablesRisques from "./pages/contribuables/ContribuablesRisques";
+//import ContribuablesRisques from "./pages/contribuables/ContribuablesRisques";
 import ContribuableDetail from "./pages/contribuables/ContribuableDetail";
 
 // Indicateurs pages
-import IndicateursTVA from "./pages/indicateurs/IndicateursTVA";
-import IndicateursImportExport from "./pages/indicateurs/IndicateursImportExport";
-import IndicateursComptabilite from "./pages/indicateurs/IndicateursComptabilite";
+import Indicateurs from "./pages/indicateurs/Indicateurs";
 
 // Programmes pages
 import FichesList from './pages/fiches/fiche';
@@ -92,10 +90,10 @@ function App() {
                 { path: "fiches", element: <FichesList /> },
                 
                 // Indicateurs routes
-                { path: "indicateurs/tva", element: <IndicateursTVA /> },
-                { path: "indicateurs/import-export", element: <IndicateursImportExport /> },
+                { path: "indicateurs/tva", element: <Indicateurs /> },
+              /*  { path: "indicateurs/import-export", element: <IndicateursImportExport /> },
                 { path: "indicateurs/comptabilite", element: <IndicateursComptabilite /> },
-                // Paramètres
+                */// Paramètres
                 { path: "parametres", element: <Parametres /> },
                 { path: "parametres/brigades", element: <BrigadesPage /> },
                 { path: "parametres/quantumes", element: <QuantumesPage /> }

@@ -26,7 +26,6 @@ import {
   AccountBalance as AccountBalanceIcon,
   TrendingUp as TrendingUpIcon,
   Analytics as AnalyticsIcon,
-  PersonSearch as PersonSearchIcon,
   ListAlt as ListAltIcon,
   BarChart as BarChartIcon,
   PieChart as PieChartIcon,
@@ -118,7 +117,7 @@ const menuItems: MenuItem[] = [
     title: "Indicateurs",
     icon: <AssessmentIcon />,
     subItems: [
-      { title: "Indicateurs TVA", path: "/indicateurs/tva", icon: <PieChartIcon /> },
+      { title: "IndicateursTVA", path: "/indicateurs/tva", icon: <PieChartIcon /> },
       { title: "Indicateurs Import/Export", path: "/indicateurs/import-export", icon: <ShowChartIcon /> },
       { title: "Indicateurs Comptabilité", path: "/indicateurs/comptabilite", icon: <BarChartIcon /> },
     ],
