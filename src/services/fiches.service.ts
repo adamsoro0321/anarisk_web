@@ -455,6 +455,26 @@ class ProgrammeService {
     return response.data;
   }
 
+  /**
+   * Télécharge tous les fichiers d'une brigade en format ZIP
+   * @param programmeName Nom du programme
+   * @param structureCode Code de la structure
+   * @param sousStructureName Nom de la sous-structure
+   * @param brigadeName Nom de la brigade
+   */
+  async downloadBrigadeZip(
+    programmeName: string,
+    structureCode: string,
+    sousStructureName: string,
+    brigadeName: string
+  ): Promise<Blob> {
+    const response = await API.get(
+      `${this.baseUrl}/${encodeURIComponent(programmeName)}/structures/${encodeURIComponent(structureCode)}/sous-structures/${encodeURIComponent(sousStructureName)}/brigades/${encodeURIComponent(brigadeName)}/download-zip`,
+      { responseType: "blob" }
+    );
+    return response.data;
+  }
+
   // ========== UTILITAIRES ==========
 
   /**

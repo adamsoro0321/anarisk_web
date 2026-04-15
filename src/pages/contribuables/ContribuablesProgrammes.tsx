@@ -9,26 +9,17 @@ import {
   Snackbar,
   Alert,
   LinearProgress,
-  IconButton,
-  Tooltip,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+
 } from "@mui/material";
 import {
   Upload as UploadIcon,
-  Refresh as RefreshIcon,
   Description as DescriptionIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
   Info as InfoIcon,
-  Download as DownloadIcon,
-  PlayArrow as GenerateIcon,
 } from "@mui/icons-material";
-import { useEffect, useState, useCallback, useRef } from "react";
+import {  useState,  useRef } from "react";
+import * as XLSX from 'xlsx';
 // @ts-expect-error - API.js n'a pas de déclaration TypeScript
 import { API } from "../../api/API.js";
 
@@ -40,14 +31,7 @@ const dgiColors = {
   neutral: { 50: "#FAFAFA", 100: "#F5F5F5", 200: "#EEEEEE", 500: "#9E9E9E", 700: "#616161", 900: "#212121" },
 };
 
-interface ProgrammeFile {
-  name: string;
-  path: string;
-  size: number;
-  size_formatted: string;
-  modified_date: string;
-  extension: string;
-}
+
 
 interface UploadProgress {
   progress: number;
@@ -56,8 +40,7 @@ interface UploadProgress {
 }
 
 const ContribuablesProgrammes = () => {
-  const [programmes, setProgrammes] = useState<ProgrammeFile[]>([]);
-  const [loading, setLoading] = useState(true);
+
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({
     progress: 0,
@@ -80,32 +63,64 @@ const ContribuablesProgrammes = () => {
     severity: 'info',
   });
 
-  // Charger la liste des fichiers Excel programmes
-  const fetchProgrammes = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await API.get('/programmes-files');
-      if (response.data.success) {
-        setProgrammes(response.data.data);
-      }
-    } catch (err: unknown) {
-      console.error('Erreur lors de la récupération des programmes:', err);
-      setSnackbar({
-        open: true,
-        message: 'Erreur lors de la récupération des programmes',
-        severity: 'error',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
-  useEffect(() => {
-    fetchProgrammes();
-  }, [fetchProgrammes]);
+  // Valider les colonnes du fichier Excel
+  const validateExcelColumns = async (file: File): Promise<{ valid: boolean; missingColumns: string[] }> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          
+          // Lire la première feuille
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          
+          // Convertir en JSON pour obtenir les en-têtes
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][];
+          
+          if (jsonData.length === 0) {
+            resolve({ valid: false, missingColumns: ['Fichier vide'] });
+            return;
+          }
+          
+          // Obtenir les en-têtes (première ligne) et normaliser (insensible à la casse)
+          const headers = jsonData[0].map(h => String(h).trim().toLowerCase());
+          
+          // Colonnes requises (insensibles à la casse)
+          const requiredColumns = [
+            { original: 'NUM_IFU', normalized: 'num_ifu' },
+            { original: 'STructures', normalized: 'structures' },
+            { original: 'BRIGADES', normalized: 'brigades' }
+          ];
+          
+          // Vérifier les colonnes manquantes
+          const missingColumns = requiredColumns
+            .filter(col => !headers.includes(col.normalized))
+            .map(col => col.original);
+          
+          resolve({
+            valid: missingColumns.length === 0,
+            missingColumns,
+          });
+        } catch (error) {
+          console.error('Erreur lors de la validation:', error);
+          resolve({ valid: false, missingColumns: ['Erreur de lecture du fichier'] });
+        }
+      };
+      
+      reader.onerror = () => {
+        resolve({ valid: false, missingColumns: ['Erreur de lecture du fichier'] });
+      };
+      
+      reader.readAsArrayBuffer(file);
+    });
+  };
 
   // Gérer la sélection du fichier
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -119,6 +134,23 @@ const ContribuablesProgrammes = () => {
         message: 'Veuillez sélectionner un fichier Excel (.xlsx ou .xls)',
         severity: 'error',
       });
+      return;
+    }
+
+    // Valider les colonnes requises
+    const validation = await validateExcelColumns(file);
+    
+    if (!validation.valid) {
+      const missingCols = validation.missingColumns.join(', ');
+      setSnackbar({
+        open: true,
+        message: `Colonnes manquantes dans le fichier : ${missingCols}. Les colonnes requises sont : NUM_IFU, STructures, BRIGADES`,
+        severity: 'error',
+      });
+      // Réinitialiser l'input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       return;
     }
 
@@ -180,7 +212,6 @@ const ContribuablesProgrammes = () => {
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
-        fetchProgrammes();
       } else {
         throw new Error(response.data.message || 'Erreur lors du téléversement');
       }
@@ -204,69 +235,9 @@ const ContribuablesProgrammes = () => {
     }
   };
 
-  const handleDownloadProgramme = async (filename: string) => {
-    try {
-      const response = await API.get(`/programmes-files/download/${filename}`, {
-        responseType: 'blob',
-      });
-      
-      // Créer un URL temporaire pour le blob
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      
-      // Nettoyer
-      link.parentNode?.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      setSnackbar({
-        open: true,
-        message: 'Fichier téléchargé avec succès',
-        severity: 'success',
-      });
-    } catch (err: unknown) {
-      console.error('Erreur lors du téléchargement:', err);
-      setSnackbar({
-        open: true,
-        message: err instanceof Error ? err.message : 'Erreur lors du téléchargement du fichier',
-        severity: 'error',
-      });
-    }
-  };
 
-  const handleGenerateFiches = async (filename: string) => {
-    try {
-      setSnackbar({
-        open: true,
-        message: 'Génération des fiches en cours...',
-        severity: 'info',
-      });
 
-      const response = await API.post('/generate-fiches', {
-        quantum_name: filename,
-      });
-      
-      if (response.data.success) {
-        setSnackbar({
-          open: true,
-          message: response.data.message || 'Fiches générées avec succès',
-          severity: 'success',
-        });
-      } else {
-        throw new Error(response.data.message || 'Erreur lors de la génération des fiches');
-      }
-    } catch (err: unknown) {
-      console.error('Erreur lors de la génération des fiches:', err);
-      setSnackbar({
-        open: true,
-        message: err instanceof Error ? err.message : 'Erreur lors de la génération des fiches',
-        severity: 'error',
-      });
-    }
-  };
+
 
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
@@ -371,20 +342,7 @@ const ContribuablesProgrammes = () => {
               {uploading ? 'Téléversement...' : 'Téléverser'}
             </Button>
 
-            <Button
-              variant="text"
-              startIcon={<RefreshIcon />}
-              onClick={fetchProgrammes}
-              disabled={loading || uploading}
-              sx={{
-                color: dgiColors.primary.main,
-                '&:hover': {
-                  backgroundColor: alpha(dgiColors.primary.main, 0.05),
-                },
-              }}
-            >
-              Actualiser
-            </Button>
+          
           </Box>
 
           {/* Barre de progression */}
@@ -426,119 +384,7 @@ const ContribuablesProgrammes = () => {
         </Box>
       </Paper>
 
-      {/* Liste des programmes */}
-      <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, color: dgiColors.neutral[900] }}>
-            Programmes disponibles ({programmes.length})
-          </Typography>
-        </Box>
-
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
-            <CircularProgress sx={{ color: dgiColors.primary.main }} />
-          </Box>
-        ) : programmes.length === 0 ? (
-          <Paper
-            sx={{
-              p: 6,
-              textAlign: 'center',
-              borderRadius: 3,
-              border: `1px solid ${dgiColors.neutral[200]}`,
-            }}
-          >
-            <DescriptionIcon sx={{ fontSize: 60, color: dgiColors.neutral[500], mb: 2 }} />
-            <Typography variant="h6" color="textSecondary" gutterBottom>
-              Aucun programme disponible
-            </Typography>
-            <Typography variant="body2" color="textSecondary">
-              Téléversez votre premier fichier Excel pour commencer
-            </Typography>
-          </Paper>
-        ) : (
-          <TableContainer
-            component={Paper}
-            sx={{
-              borderRadius: 2,
-              border: `1px solid ${dgiColors.neutral[200]}`,
-            }}
-          >
-            <Table>
-              <TableHead>
-                <TableRow sx={{ backgroundColor: dgiColors.neutral[50] }}>
-                  <TableCell sx={{ fontWeight: 600, color: dgiColors.neutral[900] }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <DescriptionIcon sx={{ fontSize: 20, color: dgiColors.primary.main }} />
-                      Nom du fichier
-                    </Box>
-                  </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600, color: dgiColors.neutral[900] }}>
-                    Actions
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {programmes.map((programme) => (
-                  <TableRow
-                    key={programme.name}
-                    sx={{
-                      '&:hover': {
-                        backgroundColor: alpha(dgiColors.primary.main, 0.05),
-                      },
-                    }}
-                  >
-                    <TableCell>
-                      <Typography
-                        sx={{
-                          fontWeight: 500,
-                          color: dgiColors.neutral[900],
-                        }}
-                      >
-                        {programme.name}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                        <Tooltip title="Télécharger le fichier">
-                          <IconButton
-                            size="small"
-                            sx={{
-                              backgroundColor: dgiColors.primary.main,
-                              color: 'white',
-                              '&:hover': {
-                                backgroundColor: dgiColors.primary.dark,
-                              },
-                            }}
-                            onClick={() => handleDownloadProgramme(programme.name)}
-                          >
-                            <DownloadIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Générer les fiches">
-                          <IconButton
-                            size="small"
-                            sx={{
-                              backgroundColor: dgiColors.accent.main,
-                              color: 'white',
-                              '&:hover': {
-                                backgroundColor: dgiColors.accent.light,
-                              },
-                            }}
-                            onClick={() => handleGenerateFiches(programme.name)}
-                          >
-                            <GenerateIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </Box>
-
+  
       {/* Snackbar pour les notifications */}
       <Snackbar
         open={snackbar.open}

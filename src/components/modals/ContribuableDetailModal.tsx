@@ -10,9 +10,9 @@ import BusinessIcon from '@mui/icons-material/Business';
 import StatService, {
   type ContribuableData,
 } from "../../services/stat.service";
-import { useCallback, useEffect, useState, useRef } from 'react';
-import ContribuableService, { type ProgrammeResponse, type CreateProgrammeResponse } from '../../services/Contribuable.service';
-import cytoscape from 'cytoscape';
+import { useCallback, useEffect, useState, useMemo } from 'react';
+import ContribuableService, { type ProgrammeResponse, type CreateProgrammeResponse, type ClientResponse, type FournisseurResponse } from '../../services/Contribuable.service';
+import CytoscapeComponent from 'react-cytoscapejs';
 import DgdComponent, { type DGDData } from '../dgdComponent';
 import IndicateurRiskView, { type InfoDataItem } from '../IndicateurRiskView';
 import BrigadeService, { type BrigadeItem } from '../../services/brigade.service';
@@ -35,6 +35,16 @@ const ContribuableDetailModal: React.FC<ContribuableDetailModalProps> = ({ open,
     const [programmeLoading, setProgrammeLoading] = useState(false);
     const [programmeError, setProgrammeError] = useState<string | null>(null);
 
+    // États pour les clients
+    const [clientsData, setClientsData] = useState<ClientResponse | null>(null);
+    const [clientsLoading, setClientsLoading] = useState(false);
+    const [clientsError, setClientsError] = useState<string | null>(null);
+
+    // États pour les fournisseurs
+    const [fournisseursData, setFournisseursData] = useState<FournisseurResponse | null>(null);
+    const [fournisseursLoading, setFournisseursLoading] = useState(false);
+    const [fournisseursError, setFournisseursError] = useState<string | null>(null);
+
     // Form creation programme
     const [brigadesList, setBrigadesList] = useState<BrigadeItem[]>([]);
     const [quantumesList, setQuantumesList] = useState<QuantumeItem[]>([]);
@@ -43,12 +53,6 @@ const ContribuableDetailModal: React.FC<ContribuableDetailModalProps> = ({ open,
     const [formSubmitting, setFormSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [formSuccess, setFormSuccess] = useState<string | null>(null);
-
-    // Ref pour le conteneur du graphe Cytoscape
-    const cyClientRef = useRef<HTMLDivElement>(null);
-    const cyFournisseurRef = useRef<HTMLDivElement>(null);
-    const cyClientInstance = useRef<cytoscape.Core | null>(null);
-    const cyFournisseurInstance = useRef<cytoscape.Core | null>(null);
 
     // Gestion du changement d'onglet
     const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -91,6 +95,36 @@ const ContribuableDetailModal: React.FC<ContribuableDetailModalProps> = ({ open,
     }
   }, []);
 
+  // Charger les clients du contribuable
+  const loadClientsData = useCallback(async (ifuToLoad: string) => {
+    try {
+      setClientsLoading(true);
+      setClientsError(null);
+      const response = await ContribuableService.getContribuableClient(ifuToLoad);
+      setClientsData(response);
+    } catch (err: unknown) {
+      console.error('Erreur chargement clients:', err);
+      setClientsError(err instanceof Error ? err.message : 'Erreur lors du chargement des clients');
+    } finally {
+      setClientsLoading(false);
+    }
+  }, []);
+
+  // Charger les fournisseurs du contribuable
+  const loadFournisseursData = useCallback(async (ifuToLoad: string) => {
+    try {
+      setFournisseursLoading(true);
+      setFournisseursError(null);
+      const response = await ContribuableService.getContribuableFournisseur(ifuToLoad);
+      setFournisseursData(response);
+    } catch (err: unknown) {
+      console.error('Erreur chargement fournisseurs:', err);
+      setFournisseursError(err instanceof Error ? err.message : 'Erreur lors du chargement des fournisseurs');
+    } finally {
+      setFournisseursLoading(false);
+    }
+  }, []);
+
   // Soumettre le formulaire de création de programme
   const handleCreateProgramme = async () => {
     if (!formBrigade || !formQuantume) {
@@ -130,196 +164,258 @@ const ContribuableDetailModal: React.FC<ContribuableDetailModalProps> = ({ open,
       BrigadeService.getAll().then(res => { if (res.success) setBrigadesList(res.data); }).catch(console.error);
       QuantumeService.getAll().then(res => { if (res.success) setQuantumesList(res.data); }).catch(console.error);
     }
- 
-    // Cleanup des graphes quand le modal se ferme
-    if (!open) {
-      if (cyClientInstance.current) {
-        cyClientInstance.current.destroy();
-        cyClientInstance.current = null;
-      }
-      if (cyFournisseurInstance.current) {
-        cyFournisseurInstance.current.destroy();
-        cyFournisseurInstance.current = null;
-      }
-    }
   }, [numIFU, open, loadContribuable, loadContribuableProgramme]);
 
-
-  // Initialiser le graphe de réseau client
+  // Réinitialiser les données des graphes quand le modal se ferme
   useEffect(() => {
-    if (currentTab === 3 && cyClientRef.current && !cyClientInstance.current && open) {
-      // Données fictives pour le réseau client
-      const clientData = {
-        nodes: [
-          // Noeud central (le contribuable)
-          { data: { id: numIFU, label: contribuable?.info?.NOM_MINEFID || numIFU, type: 'main' } },
-          // Clients (données fictives)
-          { data: { id: 'client1', label: 'Client A - Commerce SARL', type: 'client', amount: 15000000 } },
-          { data: { id: 'client2', label: 'Client B - Distribution SA', type: 'client', amount: 8500000 } },
-          { data: { id: 'client3', label: 'Client C - Services SUARL', type: 'client', amount: 12000000 } },
-          { data: { id: 'client4', label: 'Client D - Import-Export', type: 'client', amount: 20000000 } },
-          { data: { id: 'client5', label: 'Client E - Société Générale', type: 'client', amount: 5500000 } },
-          { data: { id: 'client6', label: 'Client F - Trading Ltd', type: 'client', amount: 9800000 } },
-        ],
-        edges: [
-          // Relations entre le contribuable et ses clients
-          { data: { source: numIFU, target: 'client1', label: '15M FCFA' } },
-          { data: { source: numIFU, target: 'client2', label: '8.5M FCFA' } },
-          { data: { source: numIFU, target: 'client3', label: '12M FCFA' } },
-          { data: { source: numIFU, target: 'client4', label: '20M FCFA' } },
-          { data: { source: numIFU, target: 'client5', label: '5.5M FCFA' } },
-          { data: { source: numIFU, target: 'client6', label: '9.8M FCFA' } },
-        ]
-      };
+    if (!open) {
+      setClientsData(null);
+      setFournisseursData(null);
+    }
+  }, [open]);
 
-      // Initialiser Cytoscape
-      cyClientInstance.current = cytoscape({
-        container: cyClientRef.current,
-        elements: [...clientData.nodes, ...clientData.edges],
-        style: [
-          {
-            selector: 'node',
-            style: {
-              'background-color': '#0ea5e9',
-              'label': 'data(label)',
-              'color': '#fff',
-              'text-valign': 'center',
-              'text-halign': 'center',
-              'font-size': '10px',
-              'width': '60px',
-              'height': '60px',
-              'text-wrap': 'wrap',
-              'text-max-width': '80px'
-            }
-          },
-          {
-            selector: 'node[type="main"]',
-            style: {
-              'background-color': '#16a34a',
-              'width': '80px',
-              'height': '80px',
-              'font-size': '12px',
-              'font-weight': 'bold'
-            }
-          },
-          {
-            selector: 'node[type="client"]',
-            style: {
-              'background-color': '#0ea5e9'
-            }
-          },
-          {
-            selector: 'edge',
-            style: {
-              'width': 2,
-              'line-color': '#94a3b8',
-              'target-arrow-color': '#94a3b8',
-              'target-arrow-shape': 'triangle',
-              'curve-style': 'bezier',
-              'label': 'data(label)',
-              'font-size': '8px',
-              'color': '#475569',
-              'text-background-color': '#fff',
-              'text-background-opacity': 0.8,
-              'text-background-padding': '2px'
-            }
-          }
-        ],
-        layout: {
-          name: 'circle',
-          radius: 200,
-          avoidOverlap: true
+  // Charger les données clients quand on arrive sur l'onglet
+  useEffect(() => {
+    if (currentTab === 3 && numIFU && open && !clientsData) {
+      loadClientsData(numIFU);
+    }
+  }, [currentTab, numIFU, open, clientsData, loadClientsData]);
+
+  // Charger les données fournisseurs quand on arrive sur l'onglet
+  useEffect(() => {
+    if (currentTab === 4 && numIFU && open && !fournisseursData) {
+      loadFournisseursData(numIFU);
+    }
+  }, [currentTab, numIFU, open, fournisseursData, loadFournisseursData]);
+
+  // Préparer les éléments pour le graphe des fournisseurs (fournisseurs du contribuable)
+  const elementsClients = useMemo(() => {
+    const elements = [];
+    
+    // Vérifier que numIFU est valide
+    if (!numIFU || numIFU.trim() === '') {
+      return elements;
+    }
+    
+    // Noeud central (le contribuable)
+    elements.push({
+      data: {
+        id: numIFU,
+        label: contribuable?.info?.NOM_MINEFID || `Contribuable ${numIFU}`,
+        type: 'main'
+      }
+    });
+
+    if (clientsData?.data && clientsData.data.length > 0) {
+      // Grouper les données par fournisseur (num_ifu_fourn) et calculer le total
+      const fournisseursMap = new Map<string, { total: number; count: number }>();
+      
+      clientsData.data.forEach((item) => {
+        const fournisseurIfu = item.num_ifu_fourn;
+        // Ignorer les IFU invalides ou vides
+        if (!fournisseurIfu || typeof fournisseurIfu !== 'string' || fournisseurIfu.trim() === '' || fournisseurIfu === '0') return;
+        
+        const amount = item.pr_ht || 0;
+        
+        if (fournisseursMap.has(fournisseurIfu)) {
+          const existing = fournisseursMap.get(fournisseurIfu)!;
+          existing.total += amount;
+          existing.count += 1;
+        } else {
+          fournisseursMap.set(fournisseurIfu, { total: amount, count: 1 });
         }
       });
-    }
-  }, [currentTab, numIFU, contribuable, open]);
 
-  // Initialiser le graphe de réseau fournisseur
-  useEffect(() => {
-    if (currentTab === 4 && cyFournisseurRef.current && !cyFournisseurInstance.current && open) {
-      // Données fictives pour le réseau fournisseur
-      const fournisseurData = {
-        nodes: [
-          // Noeud central (le contribuable)
-          { data: { id: numIFU, label: contribuable?.info?.NOM_MINEFID || numIFU, type: 'main' } },
-          // Fournisseurs (données fictives)
-          { data: { id: 'fournisseur1', label: 'Fournisseur X - Matières Premières', type: 'fournisseur', amount: 25000000 } },
-          { data: { id: 'fournisseur2', label: 'Fournisseur Y - Équipements', type: 'fournisseur', amount: 18000000 } },
-          { data: { id: 'fournisseur3', label: 'Fournisseur Z - Services', type: 'fournisseur', amount: 7500000 } },
-          { data: { id: 'fournisseur4', label: 'Fournisseur W - Transport', type: 'fournisseur', amount: 10000000 } },
-          { data: { id: 'fournisseur5', label: 'Fournisseur V - Maintenance', type: 'fournisseur', amount: 6200000 } },
-        ],
-        edges: [
-          // Relations entre les fournisseurs et le contribuable
-          { data: { source: 'fournisseur1', target: numIFU, label: '25M FCFA' } },
-          { data: { source: 'fournisseur2', target: numIFU, label: '18M FCFA' } },
-          { data: { source: 'fournisseur3', target: numIFU, label: '7.5M FCFA' } },
-          { data: { source: 'fournisseur4', target: numIFU, label: '10M FCFA' } },
-          { data: { source: 'fournisseur5', target: numIFU, label: '6.2M FCFA' } },
-        ]
-      };
-
-      // Initialiser Cytoscape
-      cyFournisseurInstance.current = cytoscape({
-        container: cyFournisseurRef.current,
-        elements: [...fournisseurData.nodes, ...fournisseurData.edges],
-        style: [
-          {
-            selector: 'node',
-            style: {
-              'background-color': '#f97316',
-              'label': 'data(label)',
-              'color': '#fff',
-              'text-valign': 'center',
-              'text-halign': 'center',
-              'font-size': '10px',
-              'width': '60px',
-              'height': '60px',
-              'text-wrap': 'wrap',
-              'text-max-width': '80px'
-            }
-          },
-          {
-            selector: 'node[type="main"]',
-            style: {
-              'background-color': '#16a34a',
-              'width': '80px',
-              'height': '80px',
-              'font-size': '12px',
-              'font-weight': 'bold'
-            }
-          },
-          {
-            selector: 'node[type="fournisseur"]',
-            style: {
-              'background-color': '#f97316'
-            }
-          },
-          {
-            selector: 'edge',
-            style: {
-              'width': 2,
-              'line-color': '#94a3b8',
-              'target-arrow-color': '#94a3b8',
-              'target-arrow-shape': 'triangle',
-              'curve-style': 'bezier',
-              'label': 'data(label)',
-              'font-size': '8px',
-              'color': '#475569',
-              'text-background-color': '#fff',
-              'text-background-opacity': 0.8,
-              'text-background-padding': '2px'
-            }
+      // Créer les nœuds et arêtes pour chaque fournisseur unique
+      fournisseursMap.forEach((value, fournisseurIfu) => {
+        elements.push({
+          data: {
+            id: fournisseurIfu,
+            label: `${fournisseurIfu}`,
+            type: 'fournisseur'
           }
-        ],
-        layout: {
-          name: 'circle',
-          radius: 200,
-          avoidOverlap: true
-        }
+        });
+
+        const amountInMillions = (value.total / 1000000).toFixed(1);
+        elements.push({
+          data: {
+            id: `${fournisseurIfu}-${numIFU}`,
+            source: fournisseurIfu,
+            target: numIFU,
+            label: `${amountInMillions}M FCFA`
+          }
+        });
       });
     }
-  }, [currentTab, numIFU, contribuable, open]);
+
+    return elements;
+  }, [numIFU, contribuable, clientsData]);
+
+  // Préparer les éléments pour le graphe des clients (clients du contribuable)
+  const elementsFournisseurs = useMemo(() => {
+    const elements = [];
+    
+    // Vérifier que numIFU est valide
+    if (!numIFU || numIFU.trim() === '') {
+      return elements;
+    }
+    
+    // Noeud central (le contribuable en tant que fournisseur)
+    elements.push({
+      data: {
+        id: numIFU,
+        label: contribuable?.info?.NOM_MINEFID || `Contribuable ${numIFU}`,
+        type: 'main'
+      }
+    });
+
+    if (fournisseursData?.data && fournisseursData.data.length > 0) {
+      // Grouper les données par client (num_ifu_client) et calculer le total
+      const clientsMap = new Map<string, { total: number; count: number }>();
+      
+      fournisseursData.data.forEach((item) => {
+        const clientIfu = item.num_ifu_client;
+        // Ignorer les IFU invalides ou vides
+        if (!clientIfu || typeof clientIfu !== 'string' || clientIfu.trim() === '' || clientIfu === '0') return;
+        
+        const amount = item.pr_ht || 0;
+        
+        if (clientsMap.has(clientIfu)) {
+          const existing = clientsMap.get(clientIfu)!;
+          existing.total += amount;
+          existing.count += 1;
+        } else {
+          clientsMap.set(clientIfu, { total: amount, count: 1 });
+        }
+      });
+
+      // Créer les nœuds et arêtes pour chaque client unique
+      clientsMap.forEach((value, clientIfu) => {
+        elements.push({
+          data: {
+            id: clientIfu,
+            label: `${clientIfu}`,
+            type: 'client'
+          }
+        });
+
+        const amountInMillions = (value.total / 1000000).toFixed(1);
+        elements.push({
+          data: {
+            id: `${numIFU}-${clientIfu}`,
+            source: numIFU,
+            target: clientIfu,
+            label: `${amountInMillions}M FCFA`
+          }
+        });
+      });
+    }
+
+    return elements;
+  }, [numIFU, contribuable, fournisseursData]);
+
+  // Stylesheet commun pour les graphes
+  const stylesheetClients = useMemo(() => [
+    {
+      selector: 'node',
+      style: {
+        'background-color': '#f97316',
+        'label': 'data(label)',
+        'color': '#fff',
+        'text-valign': 'center',
+        'text-halign': 'center',
+        'font-size': '9px',
+        'width': '50px',
+        'height': '50px',
+        'text-wrap': 'wrap',
+        'text-max-width': '70px',
+        'font-weight': '600'
+      }
+    },
+    {
+      selector: 'node[type="main"]',
+      style: {
+        'background-color': '#16a34a',
+        'width': '70px',
+        'height': '70px',
+        'font-size': '10px',
+        'font-weight': 'bold'
+      }
+    },
+    {
+      selector: 'node[type="fournisseur"]',
+      style: {
+        'background-color': '#f97316'
+      }
+    },
+    {
+      selector: 'edge',
+      style: {
+        'width': 2,
+        'line-color': '#94a3b8',
+        'target-arrow-color': '#94a3b8',
+        'target-arrow-shape': 'triangle',
+        'curve-style': 'bezier',
+        'label': 'data(label)',
+        'font-size': '8px',
+        'color': '#475569',
+        'text-background-color': '#fff',
+        'text-background-opacity': 0.8,
+        'text-background-padding': '2px'
+      }
+    }
+  ], []);
+
+  const stylesheetFournisseurs = useMemo(() => [
+    {
+      selector: 'node',
+      style: {
+        'background-color': '#0ea5e9',
+        'label': 'data(label)',
+        'color': '#fff',
+        'text-valign': 'center',
+        'text-halign': 'center',
+        'font-size': '9px',
+        'width': '50px',
+        'height': '50px',
+        'text-wrap': 'wrap',
+        'text-max-width': '70px',
+        'font-weight': '600'
+      }
+    },
+    {
+      selector: 'node[type="main"]',
+      style: {
+        'background-color': '#16a34a',
+        'width': '70px',
+        'height': '70px',
+        'font-size': '10px',
+        'font-weight': 'bold'
+      }
+    },
+    {
+      selector: 'node[type="client"]',
+      style: {
+        'background-color': '#0ea5e9'
+      }
+    },
+    {
+      selector: 'edge',
+      style: {
+        'width': 2,
+        'line-color': '#94a3b8',
+        'target-arrow-color': '#94a3b8',
+        'target-arrow-shape': 'triangle',
+        'curve-style': 'bezier',
+        'label': 'data(label)',
+        'font-size': '8px',
+        'color': '#475569',
+        'text-background-color': '#fff',
+        'text-background-opacity': 0.8,
+        'text-background-padding': '2px'
+      }
+    }
+  ], []);
 
   // Charger les données douanières
   useEffect(() => {
@@ -400,12 +496,24 @@ const TabPanel = (props: TabPanelProps) => {
                     aria-label="Onglets détails contribuable"
                     variant="scrollable"
                     scrollButtons="auto"
+                    sx={{
+                        '& .MuiTab-root': {
+                            color: '#16a34a',
+                            '&.Mui-selected': {
+                                color: '#15803d',
+                                fontWeight: 600
+                            }
+                        },
+                        '& .MuiTabs-indicator': {
+                            backgroundColor: '#16a34a'
+                        }
+                    }}
                 >
                     <Tab icon={<PersonIcon />} iconPosition="start" label="Fiche Contribuable" />
                     <Tab icon={<AssessmentIcon />} iconPosition="start" label="Analyse Risque" />
                     <Tab icon={<LocalShippingIcon />} iconPosition="start" label="Données Douanes" />
-                    <Tab icon={<PeopleIcon />} iconPosition="start" label="Réseau Client" />
-                    <Tab icon={<BusinessIcon />} iconPosition="start" label="Réseau Fournisseur" />
+                    <Tab icon={<BusinessIcon />} iconPosition="start" label="Réseau Fournisseurs" />
+                    <Tab icon={<PeopleIcon />} iconPosition="start" label="Réseau Clients" />
                 </Tabs>
             </Box>
 
@@ -644,53 +752,87 @@ const TabPanel = (props: TabPanelProps) => {
                             )}
                         </TabPanel>
 
-                        {/* Onglet 4: Réseau Client */}
+                        {/* Onglet 4: Réseau Fournisseurs */}
                         <TabPanel value={currentTab} index={3}>
                             <Box>
-                                <Typography variant="h6" gutterBottom color="primary">
-                                    Réseau de Clients
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                    Visualisation du réseau des clients du contribuable {contribuable?.info?.NOM_MINEFID || numIFU}
-                                </Typography>
-                                <Box 
-                                    ref={cyClientRef} 
-                                    sx={{ 
-                                        width: '100%', 
-                                        height: '500px', 
-                                        border: '1px solid #e2e8f0',
-                                        borderRadius: 2,
-                                        backgroundColor: '#f8fafc'
-                                    }}
-                                />
-                                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                                    * Données fictives - à remplacer par les données réelles de l'API
-                                </Typography>
+                               
+                                {clientsLoading && (
+                                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+                                        <CircularProgress size={24} sx={{ mr: 2 }} />
+                                        <Typography>Chargement des données...</Typography>
+                                    </Box>
+                                )}
+                                
+                                {clientsError && (
+                                    <Alert severity="error" sx={{ mb: 2 }}>
+                                        {clientsError}
+                                    </Alert>
+                                )}
+                                
+                                {!clientsLoading && clientsData && clientsData.count === 0 && (
+                                    <Alert severity="info" sx={{ mb: 2 }}>
+                                        Aucune donnée de fournisseurs trouvée pour ce contribuable
+                                    </Alert>
+                                )}
+                                
+                                {!clientsLoading && clientsData && clientsData.count > 0 && (
+                                    <Box sx={{ mb: 2 }}>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {clientsData.count} opérations trouvées.
+                                        </Typography>
+                                    </Box>
+                                )}
+                                
+                                {!clientsLoading && elementsClients.length > 1 && (
+                                    <CytoscapeComponent
+                                        elements={elementsClients}
+                                        style={{ width: '100%', height: '500px', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#f8fafc' }}
+                                        layout={{ name: 'cose', idealEdgeLength: 100, nodeOverlap: 20, refresh: 20, padding: 30 }}
+                                        stylesheet={stylesheetClients}
+                                    />
+                                )}
                             </Box>
                         </TabPanel>
 
-                        {/* Onglet 5: Réseau Fournisseur */}
+                        {/* Onglet 5: Réseau Clients */}
                         <TabPanel value={currentTab} index={4}>
                             <Box>
-                                <Typography variant="h6" gutterBottom color="primary">
-                                    Réseau de Fournisseurs
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                    Visualisation du réseau des fournisseurs du contribuable {contribuable?.info?.NOM_MINEFID || numIFU}
-                                </Typography>
-                                <Box 
-                                    ref={cyFournisseurRef} 
-                                    sx={{ 
-                                        width: '100%', 
-                                        height: '500px', 
-                                        border: '1px solid #e2e8f0',
-                                        borderRadius: 2,
-                                        backgroundColor: '#f8fafc'
-                                    }}
-                                />
-                                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                                    * Données fictives - à remplacer par les données réelles de l'API
-                                </Typography>
+                                
+                                {fournisseursLoading && (
+                                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+                                        <CircularProgress size={24} sx={{ mr: 2 }} />
+                                        <Typography>Chargement des données...</Typography>
+                                    </Box>
+                                )}
+                                
+                                {fournisseursError && (
+                                    <Alert severity="error" sx={{ mb: 2 }}>
+                                        {fournisseursError}
+                                    </Alert>
+                                )}
+                                
+                                {!fournisseursLoading && fournisseursData && fournisseursData.count === 0 && (
+                                    <Alert severity="info" sx={{ mb: 2 }}>
+                                        Aucune donnée de clients trouvée pour ce contribuable
+                                    </Alert>
+                                )}
+                                
+                                {!fournisseursLoading && fournisseursData && fournisseursData.count > 0 && (
+                                    <Box sx={{ mb: 2 }}>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {fournisseursData.count} opérations trouvées.
+                                        </Typography>
+                                    </Box>
+                                )}
+                                
+                                {!fournisseursLoading && elementsFournisseurs.length > 1 && (
+                                    <CytoscapeComponent
+                                        elements={elementsFournisseurs}
+                                        style={{ width: '100%', height: '500px', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#f8fafc' }}
+                                        layout={{ name: 'cose', idealEdgeLength: 100, nodeOverlap: 20, refresh: 20, padding: 30 }}
+                                        stylesheet={stylesheetFournisseurs}
+                                    />
+                                )}
                             </Box>
                         </TabPanel>
                     </>

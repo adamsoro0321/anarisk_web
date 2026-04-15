@@ -105,6 +105,17 @@ const Home: React.FC = () => {
     return name.charAt(0).toUpperCase();
   };
 
+  const getRoleLabel = (role?: string) => {
+    const roleLabels: Record<string, string> = {
+      admin: "Administrateur",
+      dcf: "DCF",
+      agent_dcf: "Agent DCF",
+      ur: "UR",
+      bv: "BV",
+    };
+    return role ? roleLabels[role] || role : "";
+  };
+
 
   return (
     <Box 
@@ -181,6 +192,20 @@ const Home: React.FC = () => {
                 "&:hover": { backgroundColor: dgiColors.neutral[100] },
               }}
             >
+                  <Typography
+                  variant="caption"
+                  sx={{ 
+                    color: dgiColors.accent.main, 
+                    fontWeight: 600,
+                    fontSize: "0.7rem",
+                    letterSpacing: "0.5px",
+                    textTransform: "uppercase",
+                    display: "block",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {getRoleLabel(user?.role)}
+                </Typography>
               <Avatar
                 sx={{
                   width: 40,
@@ -191,19 +216,22 @@ const Home: React.FC = () => {
               >
                 {getUserInitials()}
               </Avatar>
+              
               <Box sx={{ display: { xs: "none", md: "block" } }}>
                 <Typography
                   variant="body2"
-                  sx={{ fontWeight: 600, color: dgiColors.neutral[800] }}
+                  sx={{ fontWeight: 600, color: dgiColors.neutral[800], lineHeight: 1.3 }}
                 >
-                  {user?.name || "Utilisateur"}
+                  {(user?.nom && user?.prenom) ? `${user.nom} ${user.prenom}` : ""}
                 </Typography>
+               
                 <Typography
                   variant="caption"
-                  sx={{ color: dgiColors.neutral[500] }}
+                  sx={{ color: dgiColors.neutral[500], fontSize: "0.68rem" }}
                 >
-                  {user?.email || "admin@dgi.bf"}
+                  {user?.email || ""}
                 </Typography>
+
               </Box>
             </Box>
 

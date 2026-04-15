@@ -3,14 +3,19 @@ import {
   Box, Typography, Card, alpha,
   Button, CircularProgress, Alert, Divider, FormControl,
   InputLabel, Select, MenuItem, Chip, LinearProgress, IconButton, Tooltip,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import StopCircleIcon from '@mui/icons-material/StopCircle';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
+import ArticleIcon from '@mui/icons-material/Article';
+import AddIcon from '@mui/icons-material/Add';
 import { dgiColors } from './_dgiColors';
-import QuantumeService, { type QuantumeItem, type TaskItem, type TaskStatusResponse } from '../../services/quantume.service';
+import QuantumeService, { type QuantumeItem, type TaskItem, type TaskStatusResponse, type QuantumeStatusItem } from '../../services/quantume.service';
+import TaskMonitor from '../../components/TaskMonitor';
+import { FormDialog } from './_paramHelpers';
 
 
 
@@ -26,6 +31,13 @@ const Parametres: React.FC = () => {
   const [genSuccess, setGenSuccess]           = useState<string | null>(null);
   const [genError, setGenError]               = useState<string | null>(null);
   const [taskId, setTaskId]                   = useState<string | null>(null);
+  const [generatingFiches, setGeneratingFiches] = useState(false);
+  const [fichesSuccess, setFichesSuccess]       = useState<string | null>(null);
+  const [fichesError, setFichesError]           = useState<string | null>(null);
+
+  // --- Statut des quantumes ---
+  const [quantumesStatus, setQuantumesStatus]       = useState<QuantumeStatusItem[]>([]);
+  const [statusLoading, setStatusLoading]           = useState(false);
 
   // --- Tâches en cours ---
   const [activeTasks, setActiveTasks]             = useState<TaskItem[]>([]);
@@ -34,13 +46,58 @@ const Parametres: React.FC = () => {
   const statusIntervalRef                         = useRef<ReturnType<typeof setInterval> | null>(null);
   const [revokingId, setRevokingId]               = useState<string | null>(null);
 
-  useEffect(() => {
-    setQuantumesLoading(true);
-    QuantumeService.getAll()
-      .then((res) => { if (res.success) setQuantumes(res.data); })
-      .catch(() => { /* silently ignore */ })
-      .finally(() => setQuantumesLoading(false));
+  // --- Création de quantum ---
+  const [createDialog, setCreateDialog] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  const handleCreateQuantume = () => {
+    setCreateDialog(true);
+    setCreateError(null);
+  };
+
+  const handleSubmitQuantume = async (libelle: string) => {
+    setCreateLoading(true);
+    setCreateError(null);
+    try {
+      await QuantumeService.create(libelle);
+      setGenSuccess('Quantum créé avec succès.');
+      setTimeout(() => setGenSuccess(null), 3000);
+      setCreateDialog(false);
+      // Rafraîchir la liste des quantumes
+      fetchQuantumes();
+      fetchStatus();
+    } catch (e: unknown) {
+      setCreateError(e instanceof Error ? e.message : 'Erreur lors de la création');
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const fetchStatus = useCallback(async () => {
+    setStatusLoading(true);
+    try {
+      const res = await QuantumeService.getStatus();
+      if (res.success) setQuantumesStatus(res.data);
+    } catch { /* ignore */ } finally {
+      setStatusLoading(false);
+    }
   }, []);
+
+  const fetchQuantumes = useCallback(async () => {
+    setQuantumesLoading(true);
+    try {
+      const res = await QuantumeService.getAll();
+      if (res.success) setQuantumes(res.data);
+    } catch { /* silently ignore */ } finally {
+      setQuantumesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchQuantumes();
+    fetchStatus();
+  }, [fetchStatus, fetchQuantumes]);
 
   const handleGenerate = async () => {
     if (selectedId === '') return;
@@ -70,18 +127,47 @@ const Parametres: React.FC = () => {
     }
   };
 
+  const handleGenerateFiches = async () => {
+    if (selectedId === '') return;
+    const quantume = quantumes.find((q) => q.id === selectedId);
+    if (!quantume) return;
+    setGeneratingFiches(true); setFichesSuccess(null); setFichesError(null);
+    try {
+      const res = await QuantumeService.generateFiches(quantume.libelle);
+      if (res.success) {
+        setFichesSuccess(res.message ?? `Génération des fiches lancée pour « ${quantume.libelle} ».`);
+        setTimeout(() => setFichesSuccess(null), 8000);
+      } else {
+        setFichesError(res.message ?? 'Erreur lors de la génération des fiches.');
+      }
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      const message = err?.response?.data?.message || (e instanceof Error ? e.message : 'Erreur lors de la génération des fiches.');
+
+      setFichesError(message);
+    } finally {
+      setGeneratingFiches(false);
+    }
+  };
+
   const fetchTasks = useCallback(async () => {
     try {
       const res = await QuantumeService.getTasks();
-      if (res.success) setActiveTasks(res.data);
+      if (res.success) {
+        setActiveTasks(res.data);
+        // Auto-detect : si aucune tâche n'est suivie, suivre la première active
+        setTaskId(prev => {
+          if (!prev && res.data.length > 0) {
+            const first = res.data.find(t => t.state === 'ACTIVE') ?? res.data[0];
+            return first?.task_id ?? null;
+          }
+          return prev;
+        });
+      }
     } catch { /* ignore */ }
   }, []);
 
-  const refreshTasks = async () => {
-    setTasksLoading(true);
-    await fetchTasks();
-    setTasksLoading(false);
-  };
+
 
   useEffect(() => {
     fetchTasks();
@@ -89,53 +175,155 @@ const Parametres: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchTasks]);
 
-  useEffect(() => {
-    if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
-    if (!taskId) { setCurrentTaskStatus(null); return; }
-
-    const poll = async () => {
-      try {
-        const res = await QuantumeService.getTaskStatus(taskId);
-        setCurrentTaskStatus(res);
-        if (res.state === 'SUCCESS' || res.state === 'FAILURE') {
-          if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
-          fetchTasks();
-        }
-      } catch { /* ignore */ }
-    };
-
-    poll();
-    statusIntervalRef.current = setInterval(poll, 10000);
-    return () => { if (statusIntervalRef.current) clearInterval(statusIntervalRef.current); };
-  }, [taskId, fetchTasks]);
-
-  const handleRevoke = async (taskId: string) => {
-    setRevokingId(taskId);
-    try {
-      await QuantumeService.revokeTask(taskId, true);
-      await fetchTasks();
-      if (currentTaskStatus?.task_id === taskId) setCurrentTaskStatus(null);
-      if (taskId === taskId) setTaskId(null);
-    } catch { /* ignore */ } finally {
-      setRevokingId(null);
-    }
-  };
-
-  const stateChipColor = (state: string): 'default' | 'primary' | 'error' | 'info' | 'success' | 'warning' => {
-    switch (state.toUpperCase()) {
-      case 'SUCCESS': return 'success';
-      case 'FAILURE': return 'error';
-      case 'PROGRESS':
-      case 'STARTED':
-      case 'ACTIVE':  return 'warning';
-      case 'PENDING': return 'default';
-      default:        return 'info';
-    }
-  };
 
   return (
     <Box>
-      {/* ===== Carte : Générer une pré-liste ===== */}
+      {/* ===== Carte : Suivi des quantumes ===== */}
+      <Card
+        elevation={0}
+        sx={{
+          mb: 3, border: '1px solid', borderColor: dgiColors.neutral[200],
+          borderRadius: 2, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'visible',
+        }}
+      >
+        {/* En-tête */}
+        <Box
+          sx={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            px: 2.5, py: 2,
+            bgcolor: dgiColors.primary.main,
+            borderRadius: '8px 8px 0 0',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ p: 1, borderRadius: 1.5, bgcolor: alpha('#fff', 0.15), display: 'flex', alignItems: 'center' }}>
+              <TableChartIcon sx={{ color: '#fff', fontSize: 22 }} />
+            </Box>
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} color="#fff" lineHeight={1.2}>
+                Suivi des quantumes
+              </Typography>
+              <Typography variant="caption" sx={{ color: alpha('#fff', 0.75) }}>
+                Disponibilité des pré-listes, programmes et fiches par quantum
+              </Typography>
+            </Box>
+          </Box>
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={handleCreateQuantume}
+            sx={{
+              bgcolor: '#fff',
+              color: dgiColors.primary.main,
+              fontWeight: 700,
+              textTransform: 'none',
+              px: 2,
+              '&:hover': {
+                bgcolor: alpha('#fff', 0.9),
+              },
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            }}
+          >
+            Quantum
+          </Button>
+        </Box>
+
+        <Divider />
+
+        {/* Tableau */}
+        <TableContainer sx={{ px: 1 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: dgiColors.neutral[50] }}>
+                <TableCell sx={{ fontWeight: 700, color: dgiColors.primary.main }}>Quantum</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 700, color: dgiColors.primary.main }}>Pré-liste</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 700, color: dgiColors.primary.main }}>Programme</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 700, color: dgiColors.primary.main }}>Fiches</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {statusLoading && quantumesStatus.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                    <CircularProgress size={20} />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!statusLoading && quantumesStatus.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 2, color: 'text.secondary' }}>
+                    Aucun quantum disponible
+                  </TableCell>
+                </TableRow>
+              )}
+              {quantumesStatus.map((q) => (
+                <TableRow
+                  key={q.id}
+                  sx={{ '&:last-child td': { borderBottom: 0 }, '&:hover': { bgcolor: alpha(dgiColors.primary.main, 0.03) } }}
+                >
+                  <TableCell>
+                    <Typography variant="body2" fontWeight={600}>{q.libelle}</Typography>
+                    {q.date_creation && (
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(q.date_creation).toLocaleDateString('fr-FR')}
+                      </Typography>
+                    )}
+                  </TableCell>
+
+                  {/* Pré-liste */}
+                  <TableCell align="center">
+                    <Tooltip title={q.preliste.exists && q.preliste.info
+                      ? `${q.preliste.info.name}${q.preliste.info.size_formatted ? ' · ' + q.preliste.info.size_formatted : ''}`
+                      : 'Non disponible'}>
+                      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                        {q.preliste.exists
+                          ? <><CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
+                              <Typography variant="caption" sx={{ color: 'success.main' }}>
+                                {q.preliste.info?.type === 'dossier' ? 'Dossier' : 'CSV'}
+                              </Typography></>
+                          : <CancelIcon sx={{ color: dgiColors.neutral[300], fontSize: 18 }} />}
+                      </Box>
+                    </Tooltip>
+                  </TableCell>
+
+                  {/* Programme */}
+                  <TableCell align="center">
+                    <Tooltip title={q.programme.exists && q.programme.info
+                      ? `${q.programme.info.name} · ${q.programme.info.size_formatted}`
+                      : 'Non disponible'}>
+                      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                        {q.programme.exists
+                          ? <><CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
+                              <Typography variant="caption" sx={{ color: 'success.main' }}>Excel</Typography></>
+                          : <CancelIcon sx={{ color: dgiColors.neutral[300], fontSize: 18 }} />}
+                      </Box>
+                    </Tooltip>
+                  </TableCell>
+
+                  {/* Fiches */}
+                  <TableCell align="center">
+                    <Tooltip title={q.fiches.exists && q.fiches.info
+                      ? `${q.fiches.info.nb_fiches} fiche(s)`
+                      : 'Non disponible'}>
+                      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                        {q.fiches.exists
+                          ? <><CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />
+                              <Typography variant="caption" sx={{ color: 'success.main' }}>
+                                {q.fiches.info?.nb_fiches ?? 0} fiche(s)
+                              </Typography></>
+                          : <CancelIcon sx={{ color: dgiColors.neutral[300], fontSize: 18 }} />}
+                      </Box>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Card>
+
+{/* ===== Carte : Générer une pré-liste ===== */}
       <Card
         elevation={0}
         sx={{
@@ -173,248 +361,159 @@ const Parametres: React.FC = () => {
 
         <Divider />
 
-        {/* Corps */}
-        <Box sx={{ p: 2.5 }}>
-          {genSuccess && (
-            <Alert severity="success" sx={{ mb: 2, py: 0.5 }} onClose={() => setGenSuccess(null)}>
-              {genSuccess}
-              {taskId && (
-                <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.8 }}>
-                  ID de tâche : {taskId}
-                </Typography>
-              )}
-            </Alert>
-          )}
-          {genError && (
-            <Alert severity="error" sx={{ mb: 2, py: 0.5 }} onClose={() => setGenError(null)}>
-              {genError}
-            </Alert>
-          )}
+        {/* Corps : deux colonnes */}
+        <Box sx={{ p: 2.5, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
 
-          <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 2, flexWrap: 'wrap' }}>
-            <FormControl size="small" sx={{ minWidth: 220 }}>
-              <InputLabel>Quantum</InputLabel>
-              <Select
-                value={selectedId}
-                label="Quantum"
-                onChange={(e) => setSelectedId(e.target.value as number)}
-                disabled={quantumesLoading}
+          {/* ── Colonne gauche : Pré-liste ── */}
+          <Box sx={{ flex: 1, minWidth: 260 }}>
+            <Typography variant="caption" fontWeight={700} color={dgiColors.primary.main} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 1.5 }}>
+              Pré-liste
+            </Typography>
+            {genSuccess && (
+              <Alert severity="success" sx={{ mb: 2, py: 0.5 }} onClose={() => setGenSuccess(null)}>
+                {genSuccess}
+                {taskId && (
+                  <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.8 }}>
+                    ID de tâche : {taskId}
+                  </Typography>
+                )}
+              </Alert>
+            )}
+            {genError && (
+              <Alert severity="error" sx={{ mb: 2, py: 0.5 }} onClose={() => setGenError(null)}>
+                {genError}
+              </Alert>
+            )}
+            <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 2, flexWrap: 'wrap' }}>
+              <FormControl size="small" sx={{ minWidth: 220 }}>
+                <InputLabel>Quantum</InputLabel>
+                <Select
+                  value={selectedId}
+                  label="Quantum"
+                  onChange={(e) => setSelectedId(e.target.value as number)}
+                  disabled={quantumesLoading}
+                >
+                  {quantumesLoading && (
+                    <MenuItem disabled value="">Chargement…</MenuItem>
+                  )}
+                  {!quantumesLoading && quantumes.length === 0 && (
+                    <MenuItem disabled value="">Aucun quantum disponible</MenuItem>
+                  )}
+                  {quantumes.map((q) => (
+                    <MenuItem key={q.id} value={q.id}>{q.libelle}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Button
+                variant="contained"
+                size="medium"
+                startIcon={generating ? <CircularProgress size={16} color="inherit" /> : <PlayArrowIcon />}
+                onClick={handleGenerate}
+                disabled={generating || selectedId === ''}
+                sx={{
+                  bgcolor: dgiColors.accent.main,
+                  '&:hover': { bgcolor: dgiColors.accent.light },
+                  '&:disabled': { bgcolor: alpha(dgiColors.accent.main, 0.4) },
+                  color: '#fff',
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  px: 3,
+                  boxShadow: `0 2px 8px ${alpha(dgiColors.accent.main, 0.35)}`,
+                }}
               >
-                {quantumesLoading && (
-                  <MenuItem disabled value="">Chargement…</MenuItem>
-                )}
-                {!quantumesLoading && quantumes.length === 0 && (
-                  <MenuItem disabled value="">Aucun quantum disponible</MenuItem>
-                )}
-                {quantumes.map((q) => (
-                  <MenuItem key={q.id} value={q.id}>{q.libelle}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                {generating ? 'Génération en cours…' : 'Exécuter'}
+              </Button>
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
+              Cette action enclenchera une opération en arrière-plan !
+              <span className='text-danger'> L'opération peut durer de 5 à 10 heures</span>
+            </Typography>
+          </Box>
 
+          {/* Séparateur vertical */}
+          <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
+
+          {/* ── Colonne droite : Fiches ── */}
+          <Box sx={{ flex: 1, minWidth: 220, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+            <Typography variant="caption" fontWeight={700} color={dgiColors.primary.main} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 1.5 }}>
+              Fiches individuelles
+            </Typography>
+            {fichesSuccess && (
+              <Alert severity="success" sx={{ mb: 2, py: 0.5 }} onClose={() => setFichesSuccess(null)}>
+                {fichesSuccess}
+              </Alert>
+            )}
+            {fichesError && (
+              <Alert severity="error" sx={{ mb: 2, py: 0.5 }} onClose={() => setFichesError(null)}>
+                {fichesError}
+              </Alert>
+            )}
             <Button
-              variant="contained"
+              variant="outlined"
               size="medium"
-              startIcon={generating ? <CircularProgress size={16} color="inherit" /> : <PlayArrowIcon />}
-              onClick={handleGenerate}
-              disabled={generating || selectedId === ''}
+              startIcon={generatingFiches ? <CircularProgress size={16} color="inherit" /> : <ArticleIcon />}
+              onClick={handleGenerateFiches}
+              disabled={generatingFiches || selectedId === ''}
               sx={{
-                bgcolor: dgiColors.accent.main,
-                '&:hover': { bgcolor: dgiColors.accent.light },
-                '&:disabled': { bgcolor: alpha(dgiColors.accent.main, 0.4) },
-                color: '#fff',
+                borderColor: dgiColors.primary.main,
+                color: dgiColors.primary.main,
                 fontWeight: 700,
                 textTransform: 'none',
                 px: 3,
-                boxShadow: `0 2px 8px ${alpha(dgiColors.accent.main, 0.35)}`,
+                '&:hover': { bgcolor: alpha(dgiColors.primary.main, 0.06) },
+                '&:disabled': { opacity: 0.4 },
+                alignSelf: 'flex-start',
               }}
             >
-              {generating ? 'Génération en cours…' : 'Exécuter'}
+              {generatingFiches ? 'Génération en cours…' : 'Générer les fiches'}
             </Button>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
+              Génère les fiches individuelles pour chaque contribuable retenu dans le programme.
+            </Typography>
           </Box>
 
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
-           Cette action enclenchera une operation en arriere plan!
-             <span className='text-danger' > l'opération peut durer de 5 à 10 heures</span>
-
-          </Typography>
         </Box>
       </Card>
 
 
-      {/* ===== Carte : Tâches en cours ===== */}
-      <Card
-        elevation={0}
-        sx={{
-          border: '1px solid', borderColor: dgiColors.neutral[200],
-          borderRadius: 2, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'visible',
+
+      {/* ===== Section : Monitoring détaillé de la tâche ===== */}
+      {taskId && (
+        <Box sx={{ mt: 3 }}>
+          <TaskMonitor
+            taskId={taskId}
+            autoRefresh={true}
+            refreshInterval={3000}
+            showLogs={true}
+            onTaskComplete={(task) => {
+              // Callback quand la tâche se termine
+              if (task.status === 'SUCCESS') {
+                setGenSuccess(`Tâche "${task.task_name}" terminée avec succès !`);
+                setTimeout(() => setGenSuccess(null), 8000);
+              } else if (task.status === 'FAILURE') {
+                setGenError(`Tâche "${task.task_name}" a échoué : ${task.error || 'Erreur inconnue'}`);
+              }
+              // Rafraîchir les statuts
+              fetchStatus();
+            }}
+          />
+        </Box>
+      )}
+
+      {/* Dialog de création de quantum */}
+      <FormDialog
+        open={createDialog}
+        title="Ajouter un quantum"
+        initialValue=""
+        onClose={() => {
+          setCreateDialog(false);
+          setCreateError(null);
         }}
-      >
-        {/* En-tête */}
-        <Box
-          sx={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            px: 2.5, py: 2,
-            bgcolor: dgiColors.primary.main,
-            borderRadius: '8px 8px 0 0',
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box sx={{ p: 1, borderRadius: 1.5, bgcolor: alpha('#fff', 0.15), display: 'flex', alignItems: 'center' }}>
-              <AssignmentIcon sx={{ color: '#fff', fontSize: 22 }} />
-            </Box>
-            <Box>
-              <Typography variant="subtitle1" fontWeight={700} color="#fff" lineHeight={1.2}>
-                Tâches en cours
-              </Typography>
-              <Typography variant="caption" sx={{ color: alpha('#fff', 0.75) }}>
-                Surveillance des analyses en arrière-plan
-              </Typography>
-            </Box>
-          </Box>
-          <Tooltip title="Actualiser">
-            <IconButton size="small" sx={{ color: '#fff' }} onClick={refreshTasks} disabled={tasksLoading}>
-              {tasksLoading
-                ? <CircularProgress size={16} color="inherit" />
-                : <RefreshIcon fontSize="small" />}
-            </IconButton>
-          </Tooltip>
-        </Box>
-
-        <Divider />
-
-        {/* Corps */}
-        <Box sx={{ p: 2.5 }}>
-          {/* Suivi détaillé de la tâche courante */}
-          {currentTaskStatus && (
-            <Box
-              sx={{
-                mb: activeTasks.length > 0 ? 2 : 0,
-                p: 1.5, borderRadius: 1.5,
-                bgcolor: dgiColors.neutral[50],
-                border: '1px solid', borderColor: dgiColors.neutral[200],
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Chip size="small" label={currentTaskStatus.state} color={stateChipColor(currentTaskStatus.state)} />
-                  <Typography variant="body2" fontWeight={600}>Analyse des risques</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-                    {currentTaskStatus.task_id.slice(0, 8)}…
-                  </Typography>
-                  {!['SUCCESS', 'FAILURE', 'REVOKED'].includes(currentTaskStatus.state) && (
-                    <Tooltip title="Annuler la tâche">
-                      <span>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          disabled={revokingId === currentTaskStatus.task_id}
-                          onClick={() => handleRevoke(currentTaskStatus.task_id)}
-                        >
-                          {revokingId === currentTaskStatus.task_id
-                            ? <CircularProgress size={16} color="error" />
-                            : <StopCircleIcon fontSize="small" />}
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  )}
-                </Box>
-              </Box>
-
-              {currentTaskStatus.state === 'PENDING' && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CircularProgress size={12} />
-                  <Typography variant="caption" color="text.secondary">En attente de démarrage…</Typography>
-                </Box>
-              )}
-
-              {(currentTaskStatus.state === 'STARTED' || currentTaskStatus.state === 'ACTIVE') && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CircularProgress size={12} />
-                  <Typography variant="caption" color="text.secondary">
-                    {currentTaskStatus.status || "En cours d'exécution…"}
-                  </Typography>
-                </Box>
-              )}
-
-              {currentTaskStatus.state === 'PROGRESS' && (
-                <Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="caption" color="text.secondary">{currentTaskStatus.status}</Typography>
-                    <Typography variant="caption" fontWeight={700}>{currentTaskStatus.percent ?? 0}%</Typography>
-                  </Box>
-                  <LinearProgress variant="determinate" value={currentTaskStatus.percent ?? 0} sx={{ borderRadius: 1 }} />
-                </Box>
-              )}
-
-              {currentTaskStatus.state === 'SUCCESS' && (
-                <Typography variant="caption" sx={{ color: 'success.main' }}>
-                  ✓&nbsp;{String(currentTaskStatus.result?.nb_contribuables ?? '—')} contribuables —&nbsp;
-                  {String(currentTaskStatus.result?.nb_indicateurs ?? '—')} indicateurs calculés
-                </Typography>
-              )}
-
-              {currentTaskStatus.state === 'FAILURE' && (
-                <Typography variant="caption" color="error.main">
-                  {currentTaskStatus.error || 'La tâche a échoué.'}
-                </Typography>
-              )}
-            </Box>
-          )}
-
-          {/* Liste des tâches actives des workers */}
-          {activeTasks.map((t) => (
-            <Box
-              key={t.task_id}
-              sx={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                py: 1,
-                borderBottom: '1px solid', borderColor: dgiColors.neutral[200],
-                '&:last-child': { borderBottom: 'none' },
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Chip size="small" label={t.state} color="warning" />
-                <Typography variant="body2">{t.name.replace('app.', '')}</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-                  {t.task_id.slice(0, 8)}…
-                </Typography>
-                <Tooltip title="Annuler la tâche">
-                  <span>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      disabled={revokingId === t.task_id}
-                      onClick={() => handleRevoke(t.task_id)}
-                    >
-                      {revokingId === t.task_id
-                        ? <CircularProgress size={16} color="error" />
-                        : <StopCircleIcon fontSize="small" />}
-                    </IconButton>
-                  </span>
-                </Tooltip>
-              </Box>
-            </Box>
-          ))}
-
-          {/* État vide */}
-          {!currentTaskStatus && activeTasks.length === 0 && (
-            <Box sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                Aucune tâche en cours d'exécution
-              </Typography>
-            </Box>
-          )}
-
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
-            Actualisation automatique toutes les 5 secondes
-          </Typography>
-        </Box>
-      </Card>
+        onSubmit={handleSubmitQuantume}
+        loading={createLoading}
+        error={createError}
+      />
     </Box>
   );
 };

@@ -35,6 +35,7 @@ import StatService, {
   type IndicatorListItem,
   type IndicatorDistributionResponse,
 } from "../../services/stat.service";
+import QuantumeService, { type QuantumeItem } from "../../services/quantume.service";
 import useAuthStore from "../../store/authStore";
 
 // Palette DGI Burkina Faso
@@ -63,23 +64,54 @@ const Dashboard = () => {
   const [stats, setStats] = useState<GlobalStats | null>(null);
   const user = useAuthStore((state) => state.user); // Forcer la réévaluation du composant lors du changement d'utilisateur
   
+  // États pour les quantums
+  const [quantumes, setQuantumes] = useState<QuantumeItem[]>([]);
+  const [selectedQuantume, setSelectedQuantume] = useState<number | string | null>(null);
+  
   // États pour les indicateurs
   const [indicators, setIndicators] = useState<IndicatorListItem[]>([]);
   const [selectedIndicator, setSelectedIndicator] = useState<string>("");
   const [indicatorData, setIndicatorData] = useState<IndicatorDistributionResponse | null>(null);
   const [loadingIndicator, setLoadingIndicator] = useState(false);
 
-  // Chargement des données au montage
+  // Chargement des quantums au montage
   useEffect(() => {
+    const fetchQuantumes = async () => {
+      try {
+        const response = await QuantumeService.getAll();
+        if (response.success) {
+          setQuantumes(response.data);
+        }
+      } catch (err) {
+        console.error("Erreur lors du chargement des quantums:", err);
+      }
+    };
+    
+    fetchQuantumes();
+  }, []);
+
+  // Chargement des données au montage et au changement de quantum
+  useEffect(() => {
+    // Ne charger que si un quantum a été explicitement sélectionné
+    if (selectedQuantume === null) {
+      setLoading(false);
+      return;
+    }
+
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
 
+        // Récupérer le libellé du quantum sélectionné
+        const quantumeLibelle = selectedQuantume 
+          ? quantumes.find(q => q.id === selectedQuantume)?.libelle 
+          : undefined;
+
         // Charger les statistiques et la liste des indicateurs en parallèle
         const [statsResponse, indicatorsResponse] = await Promise.all([
-          StatService.getStats(),
-          StatService.listIndicators(),
+          StatService.getStats(quantumeLibelle),
+          StatService.listIndicators(quantumeLibelle),
         ]);
 
         if (statsResponse.success) {
@@ -93,23 +125,38 @@ const Dashboard = () => {
         }
       } catch (err) {
         console.error("Erreur lors du chargement des données:", err);
-        setError("Impossible de charger les données. Vérifiez la connexion au serveur.");
+        
+        // Message d'erreur plus spécifique
+        const errorMessage = selectedQuantume 
+          ? `Données non disponibles pour le quantum sélectionné. Essayez un autre quantum ou revenez à "Tous les quantums".`
+          : "Impossible de charger les données. Vérifiez la connexion au serveur.";
+        
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [selectedQuantume, quantumes]);
 
   // Charger les données de l'indicateur sélectionné
   useEffect(() => {
-    if (!selectedIndicator) return;
+    if (!selectedIndicator || selectedQuantume === null) return;
 
     const fetchIndicatorData = async () => {
       try {
         setLoadingIndicator(true);
-        const response = await StatService.getIndicatorDistribution(selectedIndicator);
+        
+        // Récupérer le libellé du quantum sélectionné
+        const quantumeLibelle = selectedQuantume 
+          ? quantumes.find(q => q.id === selectedQuantume)?.libelle 
+          : undefined;
+        
+        const response = await StatService.getIndicatorDistribution(
+          selectedIndicator,
+          quantumeLibelle ? { libelle_quantume: quantumeLibelle } : undefined
+        );
         if (response.success) {
           setIndicatorData(response);
         }
@@ -121,7 +168,7 @@ const Dashboard = () => {
     };
 
     fetchIndicatorData();
-  }, [selectedIndicator]);
+  }, [selectedIndicator, selectedQuantume, quantumes]);
 
   // Cartes statistiques
   const getStatsCards = () => {
@@ -155,29 +202,6 @@ const Dashboard = () => {
     ];
   };
 
-  // Affichage du chargement
-  if (loading) {
-    return (
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
-        <CircularProgress sx={{ color: dgiColors.primary.main, mb: 2 }} />
-        <Typography variant="body1" color="text.secondary">
-          Chargement des statistiques...
-        </Typography>
-      </Box>
-    );
-  }
-
-  // Affichage de l'erreur
-  if (error) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      </Box>
-    );
-  }
-
   //const statsCards = getStatsCards();
 
   return (
@@ -186,6 +210,12 @@ const Dashboard = () => {
 
       {/* Cartes Statistiques */}
 
+      {/* Affichage de l'erreur sans bloquer l'interface */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
 
       {/* Section Distribution par Indicateur */}
       <Card
@@ -196,29 +226,71 @@ const Dashboard = () => {
         }}
       >
         <CardContent sx={{ p: 3 }}>
-          {/* En-tête avec sélecteur */}
+          {/* En-tête avec sélecteurs */}
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, flexWrap: "wrap", gap: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 600, color: dgiColors.neutral[800] }}>
               Distribution des Risques par Indicateur
             </Typography>
-            <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel>Indicateur</InputLabel>
-              <Select
-                value={selectedIndicator}
-                label="Indicateur"
-                onChange={(e) => setSelectedIndicator(e.target.value)}
-              >
-                {indicators.map((ind) => (
-                  <MenuItem key={ind.id} value={ind.id}>
-                    {ind.name}
+            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+              {/* Sélecteur Quantum */}
+              <FormControl size="small" sx={{ minWidth: 200 }}>
+                <InputLabel>Quantum</InputLabel>
+                <Select
+                  value={selectedQuantume ?? ''}
+                  label="Quantum"
+                  onChange={(e) => setSelectedQuantume(e.target.value === '' ? '' : e.target.value)}
+                  displayEmpty
+                  disabled={loading}
+                >
+                  <MenuItem value="">
+                    <em>Tous les quantums</em>
                   </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                  {quantumes.map((q) => (
+                    <MenuItem key={q.id} value={q.id}>
+                      {q.libelle}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              
+              {/* Sélecteur Indicateur */}
+              <FormControl size="small" sx={{ minWidth: 200 }}>
+                <InputLabel>Indicateur</InputLabel>
+                <Select
+                  value={selectedIndicator}
+                  label="Indicateur"
+                  onChange={(e) => setSelectedIndicator(e.target.value)}
+                  disabled={loading || indicators.length === 0}
+                >
+                  {indicators.map((ind) => (
+                    <MenuItem key={ind.id} value={ind.id}>
+                      {ind.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
           </Box>
 
           {/* Contenu */}
-          {loadingIndicator ? (
+          {selectedQuantume === null ? (
+            <Box sx={{ textAlign: "center", py: 6 }}>
+              <AssessmentIcon sx={{ fontSize: 64, color: dgiColors.neutral[300], mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                Sélectionnez un quantum pour afficher les statistiques
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Choisissez un quantum spécifique ou "Tous les quantums" dans le menu ci-dessus
+              </Typography>
+            </Box>
+          ) : loading ? (
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
+              <CircularProgress sx={{ color: dgiColors.primary.main, mb: 2 }} />
+              <Typography variant="body2" color="text.secondary">
+                Chargement des statistiques...
+              </Typography>
+            </Box>
+          ) : loadingIndicator ? (
             <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
               <CircularProgress size={40} sx={{ color: dgiColors.primary.main }} />
             </Box>
@@ -240,7 +312,7 @@ const Dashboard = () => {
                         ],
                         marker: {
                           colors: [
-                            dgiColors.secondary.main,
+                            dgiColors.secondary.light,  // Rouge plus clair
                             dgiColors.accent.main,
                             dgiColors.primary.main,
                             dgiColors.neutral[400],
@@ -282,13 +354,13 @@ const Dashboard = () => {
                         sx={{
                           p: 2,
                           textAlign: "center",
-                          backgroundColor: alpha(dgiColors.secondary.main, 0.1),
+                          backgroundColor: alpha(dgiColors.secondary.light, 0.1),
                           borderRadius: 2,
-                          borderLeft: `4px solid ${dgiColors.secondary.main}`,
+                          borderLeft: `4px solid ${dgiColors.secondary.light}`,
                         }}
                       >
-                        <ErrorIcon sx={{ color: dgiColors.secondary.main, mb: 1 }} />
-                        <Typography variant="h5" fontWeight={700} color={dgiColors.secondary.main}>
+                        <ErrorIcon sx={{ color: dgiColors.secondary.light, mb: 1 }} />
+                        <Typography variant="h5" fontWeight={700} color={dgiColors.secondary.light}>
                           {indicatorData.distribution.counts.rouge || 0}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -336,28 +408,7 @@ const Dashboard = () => {
                     </Grid>
                   </Grid>
 
-                  {/* Statistiques de score si disponibles */}
-                  {indicatorData.score_stats && (
-                    <Paper sx={{ p: 2, borderRadius: 2, border: `1px solid ${dgiColors.neutral[200]}` }}>
-                      <Typography variant="subtitle2" fontWeight={600} color={dgiColors.neutral[700]} gutterBottom>
-                        Statistiques de Score
-                      </Typography>
-                      <Grid container spacing={1}>
-                        <Grid size={{ xs: 6 }}>
-                          <Typography variant="caption" color="text.secondary">Moyenne</Typography>
-                          <Typography variant="body2" fontWeight={600}>
-                            {StatService.formatNumber(indicatorData.score_stats.mean)}
-                          </Typography>
-                        </Grid>
-                        <Grid size={{ xs: 6 }}>
-                          <Typography variant="caption" color="text.secondary">Max</Typography>
-                          <Typography variant="body2" fontWeight={600}>
-                            {StatService.formatNumber(indicatorData.score_stats.max)}
-                          </Typography>
-                        </Grid>
-                      </Grid>
-                    </Paper>
-                  )}
+            
 
                   {/* Gap total si disponible */}
                   {indicatorData.gap_stats && (
@@ -435,9 +486,21 @@ const Dashboard = () => {
             </Grid>
           ) : (
             <Box sx={{ textAlign: "center", py: 4 }}>
-              <Typography color="text.secondary">
-                Sélectionnez un indicateur pour voir sa distribution
-              </Typography>
+              {error ? (
+                <>
+                  <WarningIcon sx={{ fontSize: 48, color: dgiColors.neutral[400], mb: 2 }} />
+                  <Typography color="text.secondary" sx={{ mb: 1 }}>
+                    Aucune donnée disponible pour ce quantum
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Sélectionnez un autre quantum ou revenez à "Tous les quantums"
+                  </Typography>
+                </>
+              ) : (
+                <Typography color="text.secondary">
+                  Sélectionnez un indicateur pour voir sa distribution
+                </Typography>
+              )}
             </Box>
           )}
         </CardContent>

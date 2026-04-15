@@ -25,6 +25,33 @@ export interface QuantumeGenerateResponse {
   status_url?: string;
 }
 
+// ---- Statut des artefacts ----
+export interface ArtefactInfo {
+  name: string;
+  type?: string;             // 'csv' | 'dossier'  (pré-liste)
+  size_formatted?: string | null;
+  modified?: string;
+  nb_fiches?: number;        // fiches seulement
+}
+
+export interface ArtefactStatus {
+  exists: boolean;
+  info: ArtefactInfo | null;
+}
+
+export interface QuantumeStatusItem extends QuantumeItem {
+  preliste:   ArtefactStatus;
+  programme:  ArtefactStatus;
+  fiches:     ArtefactStatus;
+}
+
+export interface QuantumeStatusResponse {
+  success: boolean;
+  count: number;
+  data: QuantumeStatusItem[];
+}
+
+// ---- Tâches ----
 export interface TaskItem {
   task_id: string;
   name: string;
@@ -93,7 +120,17 @@ export class QuantumeService {
    * @param quantumeLibelle  libellé du quantum (transmis au backend pour traçabilité)
    */
   static async generate(quantumeLibelle: string): Promise<QuantumeGenerateResponse> {
-    const response = await API.post<QuantumeGenerateResponse>(`/generate_quantume?quantume=${encodeURIComponent(quantumeLibelle)}`);
+    const response = await API.post<QuantumeGenerateResponse>(`/generate_preliste?quantume=${encodeURIComponent(quantumeLibelle)}`);
+    return response.data;
+  }
+
+  static async generateFiches(quantumeLibelle: string): Promise<QuantumeGenerateResponse> {
+    const response = await API.post<QuantumeGenerateResponse>(`/generate-fiches?quantume=${encodeURIComponent(quantumeLibelle)}`);
+    return response.data;
+  }
+
+  static async getStatus(): Promise<QuantumeStatusResponse> {
+    const response = await API.get<QuantumeStatusResponse>('/quantumes/status');
     return response.data;
   }
 

@@ -5,5 +5,18 @@ Execution
 Les fiche individuelles
 
 =========affectation brigade =======
-1.affectation brigade
+1.
 2.generation de fiche
+
+
+=============
+  "email": "marie.kabore@dgi.bf",
+            "password": "Analyste@2024",
+
+             "email": "jean.ouedraogo@dgi.bf",
+            "password": "Control@2024",
+            "roles":"dcf",
+
+             "email": "fatou.sawadogo@dgi.bf",
+            "password": "Superv@2024",
+            "roles": "agent",

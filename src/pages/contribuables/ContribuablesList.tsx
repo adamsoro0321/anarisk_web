@@ -12,7 +12,18 @@ import {
   Select,
   FormControl,
   InputLabel,
-  Snackbar
+  Snackbar,
+  Card,
+  CardContent,
+  Grid,
+  Tabs,
+  Tab,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Autocomplete,
+  TextField,
+  Slider
 } from "@mui/material";
 import { 
   Warning as WarningIcon,
@@ -21,7 +32,16 @@ import {
   ViewComfy as ViewComfyIcon,
   ViewColumn as ViewColumnIcon,
   FilterList as FilterListIcon,
-  Download as DownloadIcon
+  Download as DownloadIcon,
+  TrendingUp as TrendingUpIcon,
+  Assessment as AssessmentIcon,
+  People as PeopleIcon,
+  Layers as LayersIcon,
+  CloudDownload as CloudDownloadIcon,
+  ExpandMore as ExpandMoreIcon,
+  TableView as TableViewIcon,
+  PivotTableChart as PivotTableChartIcon,
+  BarChart as BarChartIcon
 } from "@mui/icons-material";
 import { useEffect, useState, useMemo, useCallback } from "react";
 // @ts-expect-error - API.js n'a pas de déclaration TypeScript
@@ -29,14 +49,43 @@ import { API } from "../../api/API.js";
 import QuantumeService, { type QuantumeItem } from "../../services/quantume.service";
 import { 
   DataGrid,
-  useGridApiContext,
-  gridFilteredSortedRowIdsSelector,
-  gridVisibleColumnFieldsSelector
+  useGridApiContext
 } from '@mui/x-data-grid';
+import { frFR } from '@mui/x-data-grid/locales';
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import PrintIcon from '@mui/icons-material/Print';
-import ContribuableDetailModal from "../../components/modals/ContribuableDetailModal.js"; 
+import * as FlexmonsterReact from 'react-flexmonster';
+import 'flexmonster/flexmonster.css';
+import { Bar,  Doughnut } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
+  Title,
+  Tooltip as ChartTooltip,
+  Legend as ChartLegend,
+  Filler
+} from 'chart.js';
+import ContribuableDetailModal from "../../components/modals/ContribuableDetailModal.js";
+
+// Enregistrer les composants Chart.js
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
+  Title,
+  ChartTooltip,
+  ChartLegend,
+  Filler
+); 
 // Palette DGI Burkina Faso
 const dgiColors = {
   primary: { main: "#006B3F", light: "#2E8B57", dark: "#004D2C" },
@@ -397,7 +446,7 @@ const CustomToolbar = () => {
   );
 };
 
-const ContribuablesList = () => { 
+const ContribuablesList = () => {
   const [riskData, setRiskData] = useState<RiskDataRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -406,6 +455,16 @@ const ContribuablesList = () => {
   const [selectedQuantume, setSelectedQuantume] = useState<number | string>('');
   const [loadingQuantume, setLoadingQuantume] = useState(false);
   const [downloadingQuantume, setDownloadingQuantume] = useState(false);
+  
+  // États pour les tabs
+  const [currentTab, setCurrentTab] = useState(0);
+  
+  // États pour les filtres avancés
+  const [selectedIndicators, setSelectedIndicators] = useState<number[]>([]);
+  const [scoreRange, setScoreRange] = useState<number[]>([0, 100]);
+  const [selectedRegimes, setSelectedRegimes] = useState<string[]>([]);
+  const [selectedStructures, setSelectedStructures] = useState<string[]>([]);
+
   
   // États pour les notifications
   const [snackbar, setSnackbar] = useState<{
@@ -588,6 +647,342 @@ const handleDownloadRiskData = useCallback(async (quantumeId: number | string) =
     setPaginationModel(newModel);
   };
   
+  // Gérer le changement de tab
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setCurrentTab(newValue);
+  };
+  
+  // Liste des indicateurs disponibles pour les filtres
+  const availableIndicators = [1, 2, 3, 4, 5, 8, 12, 13, 14, 16, 20, 27, 38, 39, 46, 47, 49, 57, 58];
+  
+  // Extraire les régimes et structures uniques pour les filtres
+  const uniqueRegimes = useMemo(() => {
+    return Array.from(new Set(riskData.map(r => r.CODE_REG_FISC).filter(Boolean)));
+  }, [riskData]);
+  
+  const uniqueStructures = useMemo(() => {
+    return Array.from(new Set(riskData.map(r => r.STRUCTURES).filter(Boolean)));
+  }, [riskData]);
+  
+  // Configuration Flexmonster pour l'analyse pivot
+  const flexmonsterData = useMemo(() => {
+    return riskData.map(row => ({
+      'N° IFU': row.NUM_IFU,
+      'Raison Sociale': row.NOM_MINEFID,
+      'Année': row.ANNEE_FISCAL,
+      'Structure': row.STRUCTURES,
+      'Régime': row.CODE_REG_FISC,
+      'Secteur': row.CODE_SECT_ACT,
+      'État': row.ETAT,
+      // Indicateurs de risque principaux
+      'Risque Ind.1': row.RISQUE_IND_1,
+      'Score Ind.1': row.SCORE_IND_1,
+      'GAP Ind.1': row.GAP_IND_1,
+      'Risque Ind.2': row.RISQUE_IND_2,
+      'Score Ind.2': row.SCORE_IND_2,
+      'GAP Ind.2': row.GAP_IND_2,
+      'Risque Ind.3': row.RISQUE_IND_3,
+      'Score Ind.3': row.SCORE_IND_3,
+      'Risque Ind.4': row.RISQUE_IND_4,
+      'Score Ind.4': row.SCORE_IND_4,
+      'Risque Ind.5': row.RISQUE_IND_5,
+      'Score Ind.5': row.SCORE_IND_5,
+      'Risque Ind.8': row.RISQUE_IND_8,
+      'Score Ind.8': row.SCORE_IND_8,
+      'Risque Ind.12': row.RISQUE_IND_12,
+      'Score Ind.12': row.SCORE_IND_12,
+      'Risque Ind.13': row.RISQUE_IND_13,
+      'Score Ind.13': row.SCORE_IND_13,
+      'Risque Ind.14': row.RISQUE_IND_14,
+      'Score Ind.14': row.SCORE_IND_14,
+      'Risque Ind.16': row.RISQUE_IND_16,
+      'Score Ind.16': row.SCORE_IND_16,
+      'Risque Ind.20': row.RISQUE_IND_20,
+      'Score Ind.20': row.SCORE_IND_20,
+      'Risque Ind.27': row.RISQUE_IND_27,
+      'Score Ind.27': row.SCORE_IND_27,
+    }));
+  }, [riskData]);
+
+  const flexmonsterReport = useMemo(() => ({
+    dataSource: {
+      data: flexmonsterData
+    },
+    slice: {
+      rows: [
+        { uniqueName: 'Régime' },
+        { uniqueName: 'Structure' }
+      ],
+      columns: [
+        { uniqueName: 'Année' },
+        { uniqueName: 'Measures' }
+      ],
+      measures: [
+        { uniqueName: 'Score Ind.1', aggregation: 'average', format: 'currency' },
+        { uniqueName: 'Score Ind.2', aggregation: 'average', format: 'currency' },
+        { uniqueName: 'GAP Ind.1', aggregation: 'sum', format: 'currency' },
+        { uniqueName: 'GAP Ind.2', aggregation: 'sum', format: 'currency' }
+      ]
+    },
+    options: {
+      grid: {
+        type: 'classic',
+        showTotals: true,
+        showGrandTotals: 'on'
+      },
+      configuratorActive: true,
+      configuratorButton: true,
+      showAggregations: true,
+      showCalculatedValuesButton: true,
+      drillThrough: true
+    },
+    formats: [
+      {
+        name: 'currency',
+        decimalPlaces: 2,
+        decimalSeparator: ',',
+        thousandsSeparator: ' ',
+        currencySymbol: 'FCFA',
+        currencySymbolAlign: 'right'
+      }
+    ]
+  }), [flexmonsterData]);
+  
+  // Calculer les statistiques pour le dashboard
+  const dashboardStats = useMemo(() => {
+    const totalContribuables = riskData.length;
+    const withRisk1 = riskData.filter(r => r.RISQUE_IND_1 === 1).length;
+    const withRisk2 = riskData.filter(r => r.RISQUE_IND_2 === 1).length;
+    const avgScore1 = riskData.reduce((sum, r) => sum + (r.SCORE_IND_1 || 0), 0) / totalContribuables || 0;
+    const avgScore2 = riskData.reduce((sum, r) => sum + (r.SCORE_IND_2 || 0), 0) / totalContribuables || 0;
+    const totalGap1 = riskData.reduce((sum, r) => sum + (r.GAP_IND_1 || 0), 0);
+    const totalGap2 = riskData.reduce((sum, r) => sum + (r.GAP_IND_2 || 0), 0);
+    
+    // Répartition par régime
+    const regimeDistribution = riskData.reduce((acc: any, r) => {
+      const regime = r.CODE_REG_FISC || 'Non défini';
+      acc[regime] = (acc[regime] || 0) + 1;
+      return acc;
+    }, {});
+    
+    // Répartition par structure
+    const structureDistribution = riskData.reduce((acc: any, r) => {
+      const structure = r.STRUCTURES || 'Non défini';
+      acc[structure] = (acc[structure] || 0) + 1;
+      return acc;
+    }, {});
+    
+    // Top contributeurs à risque
+    const topRiskyContribuables = [...riskData]
+      .filter(r => r.RISQUE_IND_1 === 1 || r.RISQUE_IND_2 === 1)
+      .sort((a, b) => {
+        const scoreA = (a.SCORE_IND_1 || 0) + (a.SCORE_IND_2 || 0);
+        const scoreB = (b.SCORE_IND_1 || 0) + (b.SCORE_IND_2 || 0);
+        return scoreB - scoreA;
+      })
+      .slice(0, 10);
+    
+    return {
+      totalContribuables,
+      withRisk1,
+      withRisk2,
+      avgScore1,
+      avgScore2,
+      totalGap1,
+      totalGap2,
+      regimeDistribution,
+      structureDistribution,
+      topRiskyContribuables,
+      riskPercentage1: (withRisk1 / totalContribuables) * 100,
+      riskPercentage2: (withRisk2 / totalContribuables) * 100
+    };
+  }, [riskData]);
+  
+  // Couleurs pour les PieCharts
+  const CHART_COLORS = [
+    dgiColors.primary.main,
+    dgiColors.secondary.light,  // Rouge plus clair
+    dgiColors.accent.main,
+    '#2563EB',
+    '#7C3AED',
+    '#EC4899',
+    '#F59E0B',
+    '#10B981'
+  ];
+
+  // Données pour les graphiques Chart.js
+  const chartsData = useMemo(() => {
+    // 1. Scores moyens par indicateur (Bar)
+    const indicatorScoresData = {
+      labels: ['Ind.1', 'Ind.2', 'Ind.3', 'Ind.4', 'Ind.5'],
+      datasets: [{
+        label: 'Score Moyen',
+        data: [
+          dashboardStats.avgScore1,
+          dashboardStats.avgScore2,
+          riskData.reduce((sum, r) => sum + (r.SCORE_IND_3 || 0), 0) / riskData.length || 0,
+          riskData.reduce((sum, r) => sum + (r.SCORE_IND_4 || 0), 0) / riskData.length || 0,
+          riskData.reduce((sum, r) => sum + (r.SCORE_IND_5 || 0), 0) / riskData.length || 0
+        ],
+        backgroundColor: [
+          alpha(dgiColors.secondary.light, 0.7),  // Rouge plus clair
+          alpha(dgiColors.accent.main, 0.7),
+          alpha(dgiColors.primary.light, 0.7),
+          alpha('#2563EB', 0.7),
+          alpha('#7C3AED', 0.7)
+        ],
+        borderColor: [
+          dgiColors.secondary.light,  // Rouge plus clair
+          dgiColors.accent.main,
+          dgiColors.primary.light,
+          '#2563EB',
+          '#7C3AED'
+        ],
+        borderWidth: 2
+      }]
+    };
+
+    // 2. Répartition par régime (Pie)
+    const regimeEntries = Object.entries(dashboardStats.regimeDistribution)
+      .sort((a, b) => (b[1] as number) - (a[1] as number))
+      .slice(0, 6);
+    
+    const regimeData = {
+      labels: regimeEntries.map(([regime]) => regime),
+      datasets: [{
+        label: 'Contribuables',
+        data: regimeEntries.map(([, count]) => count as number),
+        backgroundColor: CHART_COLORS.map(color => alpha(color, 0.7)),
+        borderColor: CHART_COLORS,
+        borderWidth: 2
+      }]
+    };
+
+    // 3. GAP par indicateur (Bar)
+    const gapData = {
+      labels: ['Ind.1', 'Ind.2', 'Ind.3', 'Ind.4', 'Ind.5', 'Ind.8'],
+      datasets: [{
+        label: 'GAP (Millions FCFA)',
+        data: [
+          dashboardStats.totalGap1 / 1000000,
+          dashboardStats.totalGap2 / 1000000,
+          riskData.reduce((sum, r) => sum + (r.GAP_IND_3 || 0), 0) / 1000000,
+          riskData.reduce((sum, r) => sum + (r.GAP_IND_4 || 0), 0) / 1000000,
+          riskData.reduce((sum, r) => sum + (r.GAP_IND_5 || 0), 0) / 1000000,
+          riskData.reduce((sum, r) => sum + (r.GAP_IND_8 || 0), 0) / 1000000
+        ],
+        backgroundColor: alpha(dgiColors.secondary.light, 0.5),  // Rouge plus clair
+        borderColor: dgiColors.secondary.light,  // Rouge plus clair
+        borderWidth: 2,
+        fill: true
+      }]
+    };
+
+    // 4. Distribution des scores (Line)
+    const scoreDistData = {
+      labels: ['0-20', '20-40', '40-60', '60-80', '80-100', '100+'],
+      datasets: [{
+        label: 'Nombre de contribuables',
+        data: [
+          riskData.filter(r => {
+            const score = (r.SCORE_IND_1 || 0) + (r.SCORE_IND_2 || 0);
+            return score >= 0 && score < 20;
+          }).length,
+          riskData.filter(r => {
+            const score = (r.SCORE_IND_1 || 0) + (r.SCORE_IND_2 || 0);
+            return score >= 20 && score < 40;
+          }).length,
+          riskData.filter(r => {
+            const score = (r.SCORE_IND_1 || 0) + (r.SCORE_IND_2 || 0);
+            return score >= 40 && score < 60;
+          }).length,
+          riskData.filter(r => {
+            const score = (r.SCORE_IND_1 || 0) + (r.SCORE_IND_2 || 0);
+            return score >= 60 && score < 80;
+          }).length,
+          riskData.filter(r => {
+            const score = (r.SCORE_IND_1 || 0) + (r.SCORE_IND_2 || 0);
+            return score >= 80 && score <= 100;
+          }).length,
+          riskData.filter(r => {
+            const score = (r.SCORE_IND_1 || 0) + (r.SCORE_IND_2 || 0);
+            return score > 100;
+          }).length
+        ],
+        borderColor: dgiColors.accent.main,
+        backgroundColor: alpha(dgiColors.accent.main, 0.1),
+        borderWidth: 3,
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: dgiColors.accent.main,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8
+      }]
+    };
+
+    // 5. Contribuables à risque par structure (Bar empilé)
+    const structureEntries = Object.entries(dashboardStats.structureDistribution)
+      .map(([structure, total]) => {
+        const withRisk = riskData.filter(r => 
+          r.STRUCTURES === structure && (r.RISQUE_IND_1 === 1 || r.RISQUE_IND_2 === 1)
+        ).length;
+        return {
+          structure,
+          total: total as number,
+          withRisk,
+          withoutRisk: (total as number) - withRisk
+        };
+      })
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 6);
+
+    const structureData = {
+      labels: structureEntries.map(e => e.structure),
+      datasets: [
+        {
+          label: 'Avec Risque',
+          data: structureEntries.map(e => e.withRisk),
+          backgroundColor: alpha(dgiColors.secondary.light, 0.7),  // Rouge plus clair
+          borderColor: dgiColors.secondary.light,  // Rouge plus clair
+          borderWidth: 2
+        },
+        {
+          label: 'Sans Risque',
+          data: structureEntries.map(e => e.withoutRisk),
+          backgroundColor: alpha(dgiColors.primary.main, 0.7),
+          borderColor: dgiColors.primary.main,
+          borderWidth: 2
+        }
+      ]
+    };
+
+    // Stats pour insights
+    const maxScoreRange = scoreDistData.labels[
+      scoreDistData.datasets[0].data.indexOf(Math.max(...scoreDistData.datasets[0].data))
+    ];
+    
+    const maxGapIndex = gapData.datasets[0].data.indexOf(Math.max(...gapData.datasets[0].data));
+    const maxGapIndicator = gapData.labels[maxGapIndex];
+    const maxGapValue = gapData.datasets[0].data[maxGapIndex];
+
+    return {
+      indicatorScoresData,
+      regimeData,
+      gapData,
+      scoreDistData,
+      structureData,
+      insights: {
+        maxScoreRange,
+        maxGapIndicator,
+        maxGapValue,
+        topStructure: structureEntries[0]?.structure || 'N/A',
+        topStructureRisk: structureEntries[0]?.withRisk || 0
+      }
+    };
+  }, [dashboardStats, riskData, CHART_COLORS]);
+  
   // Fermer le snackbar
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
@@ -729,88 +1124,359 @@ const handleDownloadRiskData = useCallback(async (quantumeId: number | string) =
     <Box sx={{ maxWidth: '100%', 
       width: '100%', 
       overflow: 'hidden' }}>
-        {/** dropdown selection du programme */}
-        <Paper
+
+      {/* Quantum Selector modernisé */}
+      <Card sx={{ 
+        p: 3, 
+        mb: 3, 
+        borderRadius: 3,
+        border: `2px solid ${dgiColors.primary.main}`,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        background: `linear-gradient(to right, ${alpha(dgiColors.primary.main, 0.02)}, ${alpha(dgiColors.primary.light, 0.02)})`
+      }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={4}>
+            <Box>
+              <Typography variant="body2" fontWeight={600} sx={{ mb: 1, color: dgiColors.primary.main }}>
+                Sélectionner un quantum
+              </Typography>
+              <FormControl fullWidth size="medium">
+                <Select
+                  id="quantume-select"
+                  value={selectedQuantume}
+                  onChange={(e) => setSelectedQuantume(e.target.value)}
+                  disabled={loadingQuantume}
+                  displayEmpty
+                  sx={{
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: dgiColors.primary.main,
+                      borderWidth: 2
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: dgiColors.primary.dark,
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: dgiColors.primary.main,
+                    },
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>-- Tous les contribuables --</em>
+                  </MenuItem>
+                  {quantume.map((q) => (
+                    <MenuItem key={q.id} value={q.id}>
+                      {q.libelle} {q.date_creation && `(${new Date(q.date_creation).toLocaleDateString('fr-FR')})`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          </Grid>
+          <Grid item xs={12} md={8}>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+              {loadingQuantume && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CircularProgress size={24} sx={{ color: dgiColors.primary.main }} />
+                  <Typography variant="body2" color="textSecondary">Chargement...</Typography>
+                </Box>
+              )}
+              {selectedQuantume && (
+                <>
+                  <Chip
+                    icon={<LayersIcon />}
+                    label={`${quantume.find(q => q.id === selectedQuantume)?.libelle || ''}`}
+                    color="primary"
+                    onDelete={() => setSelectedQuantume('')}
+                    sx={{
+                      backgroundColor: dgiColors.primary.main,
+                      color: '#fff',
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      py: 2.5
+                    }}
+                  />
+                  <Button
+                    variant="contained"
+                    size="large"
+                    startIcon={downloadingQuantume ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : <CloudDownloadIcon />}
+                    onClick={() => handleDownloadRiskData(selectedQuantume)}
+                    disabled={downloadingQuantume}
+                    sx={{
+                      backgroundColor: dgiColors.primary.main,
+                      color: '#fff',
+                      fontWeight: 600,
+                      px: 3,
+                      boxShadow: '0 4px 12px rgba(0, 107, 63, 0.3)',
+                      '&:hover': {
+                        backgroundColor: dgiColors.primary.dark,
+                        boxShadow: '0 6px 16px rgba(0, 107, 63, 0.4)',
+                      },
+                      '&.Mui-disabled': {
+                        backgroundColor: alpha(dgiColors.primary.main, 0.5),
+                        color: '#fff',
+                      },
+                    }}
+                  >
+                    {downloadingQuantume ? 'Téléchargement...' : 'Télécharger les données'}
+                  </Button>
+                </>
+              )}
+            </Box>
+          </Grid>
+        </Grid>
+      </Card>
+
+      {/* Filtres avancés */}
+      <Accordion 
+        sx={{ 
+          mb: 3, 
+          borderRadius: 2,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+          '&:before': { display: 'none' },
+          border: `1px solid ${dgiColors.neutral[200]}`
+        }}
+      >
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
           sx={{
-            p: 2,
-            mb: 2,
+            backgroundColor: alpha(dgiColors.primary.main, 0.02),
             borderRadius: 2,
-            border: `1px solid ${dgiColors.neutral[200]}`,
+            '&:hover': {
+              backgroundColor: alpha(dgiColors.primary.main, 0.05),
+            },
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <FormControl fullWidth size="small" sx={{ maxWidth: 400 }}>
-              <InputLabel id="quantume-select-label">Sélectionner un quantum</InputLabel>
-              <Select
-                labelId="quantume-select-label"
-                id="quantume-select"
-                value={selectedQuantume}
-                label="Sélectionner un quantum"
-                onChange={(e) => setSelectedQuantume(e.target.value)}
-                disabled={loadingQuantume}
-                sx={{
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: dgiColors.primary.main,
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: dgiColors.primary.dark,
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: dgiColors.primary.main,
-                  },
-                }}
-              >
-                <MenuItem value="">
-                  <em>-- Sélectionner --</em>
-                </MenuItem>
-                {quantume.map((q) => (
-                  <MenuItem key={q.id} value={q.id}>
-                    {q.libelle} {q.date_creation && `(${new Date(q.date_creation).toLocaleDateString('fr-FR')})`}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            {loadingQuantume && <CircularProgress size={24} sx={{ color: dgiColors.primary.main }} />}
-            {selectedQuantume && (
-              <Chip
-                label={`Quantum sélectionné: ${quantume.find(q => q.id === selectedQuantume)?.libelle || ''}`}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <FilterListIcon sx={{ color: dgiColors.primary.main }} />
+            <Typography variant="h6" fontWeight={600} color={dgiColors.primary.main}>
+              Filtres avancés
+            </Typography>
+            {(selectedIndicators.length > 0 || selectedRegimes.length > 0 || selectedStructures.length > 0) && (
+              <Chip 
+                label={`${selectedIndicators.length + selectedRegimes.length + selectedStructures.length} actif(s)`}
+                size="small"
                 color="primary"
-                onDelete={() => setSelectedQuantume('')}
-                sx={{
-                  backgroundColor: dgiColors.primary.main,
-                  color: '#fff',
-                  fontWeight: 600,
-                }}
+                sx={{ ml: 1 }}
               />
             )}
-            {/**download quantum */}
-            {selectedQuantume && (
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={downloadingQuantume ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : <DownloadIcon />}
-                onClick={() => handleDownloadRiskData(selectedQuantume)}
-                disabled={downloadingQuantume}
-                sx={
-                  {
-                  backgroundColor: dgiColors.primary.main,
-                  color: '#fff',
-                  fontWeight: 600,
-                  '&:hover': {
-                    backgroundColor: dgiColors.primary.dark,
-                  },
-                  '&.Mui-disabled': {
-                    backgroundColor: alpha(dgiColors.primary.main, 0.5),
-                    color: '#fff',
-                  },
-                }}
-              >
-                {downloadingQuantume ? 'Téléchargement...' : 'Télécharger les données'}
-              </Button>
-            )}
           </Box>
-        </Paper>
-      {/* DataGrid */}
+        </AccordionSummary>
+        <AccordionDetails sx={{ p: 3 }}>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={4}>
+              <Autocomplete
+                multiple
+                options={availableIndicators}
+                value={selectedIndicators}
+                onChange={(_event, newValue) => setSelectedIndicators(newValue)}
+                renderInput={(params) => (
+                  <TextField 
+                    {...params} 
+                    label="Indicateurs de risque" 
+                    placeholder="Sélectionner..."
+                    variant="outlined"
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip 
+                        key={key}
+                        label={`IND_${option}`} 
+                        {...tagProps} 
+                        color="primary"
+                        size="small"
+                      />
+                    );
+                  })
+                }
+                renderOption={(props, option) => {
+                  const { key, ...optionProps } = props as any;
+                  return (
+                    <li key={key} {...optionProps}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <WarningIcon sx={{ fontSize: 16, color: dgiColors.secondary.main }} />
+                        <Typography>Indicateur {option}</Typography>
+                      </Box>
+                    </li>
+                  );
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={4}>
+              <Autocomplete
+                multiple
+                options={uniqueRegimes}
+                value={selectedRegimes}
+                onChange={(_event, newValue) => setSelectedRegimes(newValue as string[])}
+                renderInput={(params) => (
+                  <TextField 
+                    {...params} 
+                    label="Régime fiscal" 
+                    placeholder="Sélectionner..."
+                    variant="outlined"
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip 
+                        key={key}
+                        label={option as string} 
+                        {...tagProps} 
+                        color="secondary"
+                        size="small"
+                      />
+                    );
+                  })
+                }
+              />
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <Autocomplete
+                multiple
+                options={uniqueStructures}
+                value={selectedStructures}
+                onChange={(_event, newValue) => setSelectedStructures(newValue as string[])}
+                renderInput={(params) => (
+                  <TextField 
+                    {...params} 
+                    label="Structures" 
+                    placeholder="Sélectionner..."
+                    variant="outlined"
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip 
+                        key={key}
+                        label={option as string} 
+                        {...tagProps} 
+                        size="small"
+                      />
+                    );
+                  })
+                }
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Box sx={{ px: 2 }}>
+                <Typography variant="body2" gutterBottom fontWeight={600} color="textSecondary">
+                  Plage de score: {scoreRange[0]} - {scoreRange[1]}
+                </Typography>
+                <Slider
+                  value={scoreRange}
+                  onChange={(_event, newValue) => setScoreRange(newValue as number[])}
+                  valueLabelDisplay="auto"
+                  min={0}
+                  max={100}
+                  marks={[
+                    { value: 0, label: '0' },
+                    { value: 25, label: '25' },
+                    { value: 50, label: '50' },
+                    { value: 75, label: '75' },
+                    { value: 100, label: '100' }
+                  ]}
+                  sx={{
+                    color: dgiColors.accent.main,
+                    '& .MuiSlider-thumb': {
+                      boxShadow: '0 2px 8px rgba(206, 142, 0, 0.4)',
+                    },
+                  }}
+                />
+              </Box>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', alignItems: 'flex-end', height: '100%' }}>
+                <Button 
+                  variant="outlined" 
+                  startIcon={<RefreshIcon />}
+                  onClick={() => {
+                    setSelectedIndicators([]);
+                    setSelectedRegimes([]);
+                    setSelectedStructures([]);
+                    setScoreRange([0, 100]);
+                  }}
+                  sx={{
+                    borderColor: dgiColors.neutral[200],
+                    color: dgiColors.neutral[700],
+                    '&:hover': {
+                      borderColor: dgiColors.primary.main,
+                      backgroundColor: alpha(dgiColors.primary.main, 0.04),
+                    },
+                  }}
+                >
+                  Réinitialiser
+                </Button>
+                <Button 
+                  variant="contained"
+                  startIcon={<FilterListIcon />}
+                  sx={{
+                    backgroundColor: dgiColors.primary.main,
+                    '&:hover': {
+                      backgroundColor: dgiColors.primary.dark,
+                    },
+                  }}
+                >
+                  Appliquer
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
+        </AccordionDetails>
+      </Accordion>
+
+      {/* Tabs pour organisation du contenu */}
+      <Paper sx={{ mb: 3, borderRadius: 2 }}>
+        <Tabs 
+          value={currentTab} 
+          onChange={handleTabChange}
+          variant="fullWidth"
+          sx={{
+            borderBottom: `2px solid ${dgiColors.neutral[200]}`,
+            '& .MuiTab-root': {
+              fontWeight: 600,
+              fontSize: '0.95rem',
+              textTransform: 'none',
+              minHeight: 64,
+            },
+            '& .Mui-selected': {
+              color: dgiColors.primary.main,
+            },
+            '& .MuiTabs-indicator': {
+              height: 3,
+              backgroundColor: dgiColors.primary.main,
+            },
+          }}
+        >
+          <Tab 
+            icon={<TableViewIcon />} 
+            iconPosition="start"
+            label="Liste des contribuables" 
+          />
+          <Tab 
+            icon={<PivotTableChartIcon />} 
+            iconPosition="start"
+            label="Analyse Pivot" 
+          />
+          <Tab 
+            icon={<BarChartIcon />} 
+            iconPosition="start"
+            label="Graphiques" 
+          />
+        </Tabs>
+      </Paper>
+
+      {/* Tab Panel 0: Liste DataGrid */}
+      {currentTab === 0 && (
       <Paper
         sx={{
           borderRadius: 3,
@@ -826,6 +1492,7 @@ const handleDownloadRiskData = useCallback(async (quantumeId: number | string) =
       >
         <DataGrid
           showToolbar
+          localeText={frFR.components.MuiDataGrid.defaultProps.localeText}
           rows={riskData}
           columns={allColumns}
           loading={loading}
@@ -969,8 +1636,223 @@ const handleDownloadRiskData = useCallback(async (quantumeId: number | string) =
    
         />
       </Paper>
+      )}
 
-      {/* Informations de pagination et statistiques */}
+      {/* Tab Panel 1: Analyse Pivot */}
+      {currentTab === 1 && (
+        <Paper sx={{ p: 3, borderRadius: 3, minHeight: 600 }}>
+          <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <PivotTableChartIcon sx={{ fontSize: 32, color: dgiColors.primary.main }} />
+            <Typography variant="h5" fontWeight="bold" color="primary">
+              Analyse Pivot Interactive
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+            Explorez vos données avec des tableaux croisés dynamiques. Glissez-déposez les dimensions, 
+            créez des agrégations personnalisées et visualisez les tendances.
+          </Typography>
+          <Box sx={{ 
+            height: 600, 
+            border: `1px solid ${dgiColors.neutral[200]}`,
+            borderRadius: 2,
+            overflow: 'hidden'
+          }}>
+            <FlexmonsterReact.Pivot
+              toolbar={true}
+              report={flexmonsterReport}
+              width="100%"
+              height="100%"
+            />
+          </Box>
+        </Paper>
+      )}
+
+      {/* Tab Panel 2: Graphiques */}
+      {currentTab === 2 && (
+        <Box>
+          {/* Header */}
+          <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <BarChartIcon sx={{ fontSize: 32, color: dgiColors.accent.main }} />
+            <Typography variant="h5" fontWeight="bold">
+              Visualisations Graphiques - Analyse des Risques
+            </Typography>
+          </Box>
+
+          {/* Première ligne de graphiques */}
+          <Grid container spacing={3} sx={{ mb: 3 }}>
+
+
+            {/* Répartition par régime fiscal - Doughnut */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 3, borderRadius: 2, border: `1px solid ${dgiColors.neutral[200]}` }}>
+                <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                  Répartition par Régime Fiscal
+                </Typography>
+                <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Doughnut 
+                    data={chartsData.regimeData}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { 
+                          position: 'right',
+                          labels: { padding: 15, font: { size: 11 } }
+                        },
+                        tooltip: {
+                          backgroundColor: '#fff',
+                          titleColor: dgiColors.neutral[900],
+                          bodyColor: dgiColors.neutral[700],
+                          borderColor: dgiColors.neutral[200],
+                          borderWidth: 1,
+                          callbacks: {
+                            label: (context) => {
+                              const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                              const value = context.parsed;
+                              const percentage = ((value / total) * 100).toFixed(1);
+                              return `${context.label}: ${value} (${percentage}%)`;
+                            }
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </Box>
+              </Paper>
+            </Grid>
+
+             <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 3, borderRadius: 2, border: `1px solid ${dgiColors.neutral[200]}` }}>
+                <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                  GAP Total par Indicateur (en Millions FCFA)
+                </Typography>
+                <Box sx={{ height: 300 }}>
+                  <Bar 
+                    data={chartsData.gapData}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { 
+                          display: true,
+                          labels: { font: { size: 11 } }
+                        },
+                        tooltip: {
+                          backgroundColor: '#fff',
+                          titleColor: dgiColors.neutral[900],
+                          bodyColor: dgiColors.neutral[700],
+                          borderColor: dgiColors.neutral[200],
+                          borderWidth: 1,
+                          callbacks: {
+                            label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(1)}M FCFA`
+                          }
+                        }
+                      },
+                      scales: {
+                        y: { beginAtZero: true, grid: { color: dgiColors.neutral[100] } },
+                        x: { grid: { display: false } }
+                      }
+                    }}
+                  />
+                </Box>
+              </Paper>
+            </Grid>
+          </Grid>
+
+
+
+          {/* Troisième ligne - Graphique large */}
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <Paper sx={{ p: 3, borderRadius: 2, border: `1px solid ${dgiColors.neutral[200]}` }}>
+                <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                  Contribuables à Risque par Structure
+                </Typography>
+                <Box sx={{ height: 350 }}>
+                  <Bar 
+                    data={chartsData.structureData}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { 
+                          display: true,
+                          position: 'top',
+                          labels: { font: { size: 12 } }
+                        },
+                        tooltip: {
+                          backgroundColor: '#fff',
+                          titleColor: dgiColors.neutral[900],
+                          bodyColor: dgiColors.neutral[700],
+                          borderColor: dgiColors.neutral[200],
+                          borderWidth: 1,
+                          callbacks: {
+                            label: (context) => `${context.dataset.label}: ${context.parsed.y}`
+                          }
+                        }
+                      },
+                      scales: {
+                        y: { 
+                          stacked: true, 
+                          beginAtZero: true, 
+                          grid: { color: dgiColors.neutral[100] } 
+                        },
+                        x: { 
+                          stacked: true,
+                          grid: { display: false } 
+                        }
+                      }
+                    }}
+                  />
+                </Box>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          {/* Insights */}
+          <Paper sx={{ 
+            p: 3, 
+            mt: 3, 
+            borderRadius: 2, 
+            background: `linear-gradient(135deg, ${alpha(dgiColors.accent.main, 0.05)}, ${alpha(dgiColors.accent.light, 0.05)})`,
+            border: `1px solid ${dgiColors.accent.main}`
+          }}>
+            <Typography variant="h6" fontWeight="bold" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <TrendingUpIcon sx={{ color: dgiColors.accent.main }} />
+              Insights Clés
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <Alert severity="info" sx={{ borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="600">Concentration des Scores</Typography>
+                  <Typography variant="caption">
+                    La majorité des contribuables se situent dans la tranche de score {chartsData.insights.maxScoreRange}
+                  </Typography>
+                </Alert>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Alert severity="warning" sx={{ borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="600">GAP Principal</Typography>
+                  <Typography variant="caption">
+                    L'indicateur avec le GAP le plus élevé est {chartsData.insights.maxGapIndicator} ({chartsData.insights.maxGapValue.toFixed(1)}M FCFA)
+                  </Typography>
+                </Alert>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Alert severity="error" sx={{ borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="600">Structure Prioritaire</Typography>
+                  <Typography variant="caption">
+                    {chartsData.insights.topStructure} compte {chartsData.insights.topStructureRisk} contribuables à risque
+                  </Typography>
+                </Alert>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Box>
+      )}
+
+      {/* Informations de pagination et statistiques - Affichées seulement pour le tab Liste */}
+      {currentTab === 0 && (
       <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <Chip 
@@ -997,6 +1879,7 @@ const handleDownloadRiskData = useCallback(async (quantumeId: number | string) =
           />
         </Box>
       </Box>
+      )}
 
       {/* Modal de détails du contribuable */}
       <ContribuableDetailModal 

@@ -25,7 +25,10 @@ import FichesList from './pages/fiches/fiche';
 import Parametres from './pages/parametres/parametre';
 import BrigadesPage from './pages/parametres/BrigadesPage';
 import QuantumesPage from './pages/parametres/QuantumesPage';
+import Users from './pages/parametres/User';
 import ContribuablesProgrammes from "./pages/contribuables/ContribuablesProgrammes";
+import IndicateursImportExport from "./pages/indicateurs/IndicateursImportExport";
+import IndicateursComptabilite from "./pages/indicateurs/IndicateursComptabilite";
 
 const MainLayout = () => {
   return (
@@ -71,7 +74,7 @@ function App() {
               element: <Home />,
               children: [
                 // Route par défaut - Dashboard
-                { index: true, element: <Navigate to="/dashboard" replace /> },
+                { index: true, element: <Navigate to="/" replace /> },
         
                 // Dashboard routes
                 { path: "dashboard", element: <Dashboard /> },
@@ -89,14 +92,17 @@ function App() {
                 // Programmes routes
                 { path: "fiches", element: <FichesList /> },
                 
+              
+                
                 // Indicateurs routes
                 { path: "indicateurs/tva", element: <Indicateurs /> },
-              /*  { path: "indicateurs/import-export", element: <IndicateursImportExport /> },
+               { path: "indicateurs/import-export", element: <IndicateursImportExport /> },
                 { path: "indicateurs/comptabilite", element: <IndicateursComptabilite /> },
-                */// Paramètres
+                /// Paramètres
                 { path: "parametres", element: <Parametres /> },
                 { path: "parametres/brigades", element: <BrigadesPage /> },
-                { path: "parametres/quantumes", element: <QuantumesPage /> }
+                { path: "parametres/quantumes", element: <QuantumesPage /> },
+                { path: "parametres/users", element: <Users /> }
               ],
             },
           ],

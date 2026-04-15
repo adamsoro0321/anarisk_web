@@ -36,6 +36,7 @@ import {
   Image as ImageIcon,
   TableChart as TableChartIcon,
   NavigateNext as NavigateNextIcon,
+  CloudDownload as CloudDownloadIcon,
 } from "@mui/icons-material";
 
 import programmeService from "../../services/fiches.service";
@@ -47,6 +48,7 @@ import type {
   FileInfo,
   ContribuableFiles,
 } from "../../services/fiches.service";
+import useAuthStore from "../../store/authStore";
 
 // Palette DGI Burkina Faso
 const dgiColors = {
@@ -85,6 +87,10 @@ interface FolderCardProps {
   icon: React.ReactNode;
   onClick: () => void;
   color?: string;
+  onSecondaryAction?: () => void;
+  secondaryActionIcon?: React.ReactNode;
+  secondaryActionTooltip?: string;
+  secondaryActionLoading?: boolean;
 }
 
 const FolderCard: React.FC<FolderCardProps> = ({
@@ -95,6 +101,10 @@ const FolderCard: React.FC<FolderCardProps> = ({
   icon,
   onClick,
   color = dgiColors.primary.main,
+  onSecondaryAction,
+  secondaryActionIcon,
+  secondaryActionTooltip = "Action",
+  secondaryActionLoading = false,
 }) => (
   <Card
     elevation={0}
@@ -102,6 +112,7 @@ const FolderCard: React.FC<FolderCardProps> = ({
       border: `1px solid ${dgiColors.neutral[200]}`,
       borderRadius: 2,
       transition: "all 0.2s ease",
+      position: "relative",
       "&:hover": {
         borderColor: color,
         boxShadow: `0 4px 12px ${alpha(color, 0.15)}`,
@@ -109,6 +120,40 @@ const FolderCard: React.FC<FolderCardProps> = ({
       },
     }}
   >
+    {onSecondaryAction && (
+      <Box
+        sx={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          zIndex: 1,
+        }}
+      >
+        <Tooltip title={secondaryActionTooltip}>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSecondaryAction();
+            }}
+            disabled={secondaryActionLoading}
+            sx={{
+              backgroundColor: alpha(color, 0.1),
+              color: color,
+              "&:hover": {
+                backgroundColor: alpha(color, 0.2),
+              },
+            }}
+          >
+            {secondaryActionLoading ? (
+              <CircularProgress size={20} sx={{ color: color }} />
+            ) : (
+              secondaryActionIcon
+            )}
+          </IconButton>
+        </Tooltip>
+      </Box>
+    )}
     <CardActionArea onClick={onClick}>
       <CardContent>
         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
@@ -122,7 +167,7 @@ const FolderCard: React.FC<FolderCardProps> = ({
           >
             {icon}
           </Box>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ flex: 1, minWidth: 0, pr: onSecondaryAction ? 4 : 0 }}>
             <Typography
               variant="subtitle1"
               fontWeight={600}
@@ -238,11 +283,13 @@ const FichesList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-
+  const [downloadingBrigade, setDownloadingBrigade] = useState<string | null>(null);
+  const user = useAuthStore((state) => state.user);
   // État de navigation
   const [navigation, setNavigation] = useState<NavigationState>({
     level: "programmes",
   });
+
 
   // Données
   const [programmes, setProgrammes] = useState<Programme[]>([]);
@@ -445,6 +492,43 @@ const FichesList: React.FC = () => {
         file.name
       );
       window.open(url, "_blank");
+    }
+  };
+
+  const handleDownloadBrigade = async (brigade: Brigade) => {
+    if (!navigation.programme || !navigation.structure || !navigation.sousStructure) {
+      return;
+    }
+
+    try {
+      setDownloadingBrigade(brigade.name);
+      
+      const blob = await programmeService.downloadBrigadeZip(
+        navigation.programme,
+        navigation.structure,
+        navigation.sousStructure,
+        brigade.name
+      );
+
+      // Créer un lien de téléchargement
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${brigade.name}_${navigation.structure}_${navigation.programme}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+    } catch (err) {
+      console.error("Erreur lors du téléchargement de la brigade:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Erreur lors du téléchargement de la brigade"
+      );
+    } finally {
+      setDownloadingBrigade(null);
     }
   };
 
@@ -675,6 +759,10 @@ const FichesList: React.FC = () => {
                   icon={<GroupsIcon sx={{ fontSize: 32 }} />}
                   onClick={() => handleSelectBrigade(brigade)}
                   color={dgiColors.secondary.main}
+                  onSecondaryAction={() => handleDownloadBrigade(brigade)}
+                  secondaryActionIcon={<CloudDownloadIcon fontSize="small" />}
+                  secondaryActionTooltip="Télécharger tous les fichiers (ZIP)"
+                  secondaryActionLoading={downloadingBrigade === brigade.name}
                 />
               </Grid>
             ))}

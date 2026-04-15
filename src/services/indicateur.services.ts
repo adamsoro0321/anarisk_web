@@ -91,8 +91,20 @@ export class IndicateurService {
   /**
    * Récupère tous les indicateurs
    */
-  static async getAll(): Promise<IndicateurListResponse> {
-    const response = await API.get<IndicateurListResponse>('/indicateurs');
+  static async getAll(params?: Record<string, any>): Promise<IndicateurListResponse> {
+
+ const queryParams = new URLSearchParams();
+   if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams.append(key, value.toString());
+      }
+    });
+  }
+    const url = queryParams.toString() 
+    ? `/indicateurs?${queryParams.toString()}`
+    : '/indicateurs';
+    const response = await API.get<IndicateurListResponse>(url);
     return response.data;
   }
 

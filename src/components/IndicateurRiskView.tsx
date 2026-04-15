@@ -90,7 +90,7 @@ const IndicateurRiskView: React.FC<IndicateurRiskViewProps> = ({
       setLoading(true);
       setError(null);
       const response = await ContribuableService.getContribuableIndicators(ifu);
-      console.log("response",response)
+
       if (response.success) {
         setData(response);
       } else {

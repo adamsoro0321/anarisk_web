@@ -70,6 +70,56 @@ export interface INSDResponse {
   message?: string;
 }
 
+// ========== TYPES DONNÉES FOURNISSEURS/CLIENTS ==========
+
+/**
+ * Données d'un fournisseur ou client d'un contribuable
+ * Note: Les noms de champs sont en minuscules car pandas to_dict() les convertit
+ */
+export interface FournisseurClientData {
+  num_ifu_client: string;
+  num_ifu_fourn: string;
+  annee_fiscal: number;
+  mois_fiscal: number;
+  tva_deductible: number | null;
+  tva_facture: number | null;
+  id_impot: string | null;
+  pr_ht: number | null;
+  nature_deduction: string | null;
+}
+
+/**
+ * Résumé des données fournisseurs/clients
+ */
+export interface FournisseurClientSummary {
+  total_records: number;
+  annees: number[];
+}
+
+/**
+ * Réponse API pour les données de fournisseurs
+ */
+export interface FournisseurResponse {
+  success: boolean;
+  ifu: string;
+  count: number;
+  data: FournisseurClientData[];
+  summary: FournisseurClientSummary;
+  message?: string;
+}
+
+/**
+ * Réponse API pour les données de clients
+ */
+export interface ClientResponse {
+  success: boolean;
+  ifu: string;
+  count: number;
+  data: FournisseurClientData[];
+  summary: FournisseurClientSummary;
+  message?: string;
+}
+
 // ========== TYPES INDICATEURS ==========
 
 /**
@@ -218,6 +268,52 @@ export class ContribuableService {
       return response.data;
     } catch (error) {
       console.error(`Erreur lors de la récupération des données INSD pour ${ifu}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère les données des fournisseurs d'un contribuable
+   * 
+   * @param ifu - Numéro IFU du contribuable
+   * @returns Promesse contenant les données des fournisseurs
+   * @throws {Error} Si la requête échoue
+   * 
+   * @example
+   * ```typescript
+   * const fournisseurs = await ContribuableService.getContribuableFournisseur('00026786L');
+   * console.log(`Nombre de fournisseurs: ${fournisseurs.count}`);
+   * ```
+   */
+  static async getContribuableFournisseur(ifu: string): Promise<FournisseurResponse> {
+    try {
+      const response = await API.get<FournisseurResponse>(`/contribuables/fournisseurs?ifu=${ifu}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Erreur lors de la récupération des fournisseurs pour ${ifu}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère les données des clients d'un contribuable
+   * 
+   * @param ifu - Numéro IFU du contribuable
+   * @returns Promesse contenant les données des clients
+   * @throws {Error} Si la requête échoue
+   * 
+   * @example
+   * ```typescript
+   * const clients = await ContribuableService.getContribuableClient('00026786L');
+   * console.log(`Nombre de clients: ${clients.count}`);
+   * ```
+   */
+  static async getContribuableClient(ifu: string): Promise<ClientResponse> {
+    try {
+      const response = await API.get<ClientResponse>(`/contribuables/clients?ifu=${ifu}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Erreur lors de la récupération des clients pour ${ifu}:`, error);
       throw error;
     }
   }

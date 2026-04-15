@@ -298,6 +298,7 @@ export interface IndicatorsListResponse {
 export interface IndicatorDistributionParams {
   annee?: number | string;
   structure?: string;
+  libelle_quantume?: string;
 }
 
 /**
@@ -334,6 +335,7 @@ export class StatService {
   /**
    * Récupère les statistiques globales des données de risque
    * 
+   * @param libelle_quantume - Libellé du quantum à filtrer (optionnel)
    * @returns Promesse contenant les statistiques
    * @throws {Error} Si la requête échoue
    * 
@@ -341,11 +343,17 @@ export class StatService {
    * ```typescript
    * const stats = await StatService.getStats();
    * console.log(`Total contribuables: ${stats.stats.total_contribuables}`);
+   * 
+   * // Avec quantum
+   * const statsQ1 = await StatService.getStats('Q1_2025');
    * ```
    */
-  static async getStats(): Promise<StatsResponse> {
+  static async getStats(libelle_quantume?: string): Promise<StatsResponse> {
     try {
-      const response = await API.get<StatsResponse>("/stats");
+      const url = libelle_quantume 
+        ? `/stats?libelle_quantume=${encodeURIComponent(libelle_quantume)}`
+        : "/stats";
+      const response = await API.get<StatsResponse>(url);
       return response.data;
     } catch (error) {
       console.error("Erreur lors de la récupération des statistiques:", error);
@@ -606,7 +614,7 @@ export class StatService {
     const level = (risque || "").toLowerCase();
     switch (level) {
       case "rouge":
-        return "#CE1126";
+        return "#E53945";  // Rouge plus clair
       case "jaune":
         return "#CE8E00";
       case "vert":
@@ -642,7 +650,7 @@ export class StatService {
    * Récupère la distribution des risques pour un indicateur spécifique
    * 
    * @param indicatorId - ID de l'indicateur (ex: "1", "IND_1", "2", etc.)
-   * @param params - Paramètres optionnels (année, structure)
+   * @param params - Paramètres optionnels (année, structure, quantum)
    * @returns Distribution des risques avec statistiques
    * 
    * @example
@@ -654,6 +662,9 @@ export class StatService {
    * 
    * // Avec filtres
    * const dist2025 = await StatService.getIndicatorDistribution('1', { annee: 2025 });
+   * 
+   * // Avec quantum
+   * const distQ1 = await StatService.getIndicatorDistribution('1', { libelle_quantume: 'Q1_2025' });
    * ```
    */
   static async getIndicatorDistribution(
@@ -671,6 +682,10 @@ export class StatService {
         queryParams.append("structure", params.structure);
       }
 
+      if (params?.libelle_quantume) {
+        queryParams.append("libelle_quantume", params.libelle_quantume);
+      }
+
       const url = queryParams.toString()
         ? `/stats/indicator/${indicatorId}?${queryParams.toString()}`
         : `/stats/indicator/${indicatorId}`;
@@ -686,6 +701,7 @@ export class StatService {
   /**
    * Récupère la liste de tous les indicateurs disponibles
    * 
+   * @param libelle_quantume - Libellé du quantum à filtrer (optionnel)
    * @returns Liste des indicateurs avec leurs distributions de base
    * 
    * @example
@@ -694,11 +710,17 @@ export class StatService {
    * indicators.indicators.forEach(ind => {
    *   console.log(`${ind.name}: ${ind.distribution.rouge} rouges`);
    * });
+   * 
+   * // Avec quantum
+   * const indicatorsQ1 = await StatService.listIndicators('Q1_2025');
    * ```
    */
-  static async listIndicators(): Promise<IndicatorsListResponse> {
+  static async listIndicators(libelle_quantume?: string): Promise<IndicatorsListResponse> {
     try {
-      const response = await API.get<IndicatorsListResponse>("/stats/indicators");
+      const url = libelle_quantume 
+        ? `/stats/indicators?libelle_quantume=${encodeURIComponent(libelle_quantume)}`
+        : "/stats/indicators";
+      const response = await API.get<IndicatorsListResponse>(url);
       return response.data;
     } catch (error) {
       console.error("Erreur lors de la récupération des indicateurs:", error);
@@ -731,7 +753,7 @@ export class StatService {
     const level = (risque || "").toLowerCase();
     switch (level) {
       case "rouge":
-        return "rgba(206, 17, 38, 0.1)";
+        return "rgba(229, 57, 69, 0.1)";  // Rouge plus clair
       case "jaune":
         return "rgba(206, 142, 0, 0.1)";
       case "vert":
@@ -743,11 +765,25 @@ export class StatService {
 
   /**
    * Récupère la distribution globale des couleurs de risque (tous indicateurs)
+   * 
+   * @param libelle_quantume - Libellé du quantum à filtrer (optionnel)
    * @returns Distribution globale et unique par couleur
+   * 
+   * @example
+   * ```typescript
+   * const colors = await StatService.getRiskColorsDistribution();
+   * console.log(`Total rouge: ${colors.global_distribution.rouge}`);
+   * 
+   * // Avec quantum
+   * const colorsQ1 = await StatService.getRiskColorsDistribution('Q1_2025');
+   * ```
    */
-  static async getRiskColorsDistribution(): Promise<RiskColorsDistributionResponse> {
+  static async getRiskColorsDistribution(libelle_quantume?: string): Promise<RiskColorsDistributionResponse> {
     try {
-      const response = await API.get<RiskColorsDistributionResponse>("/stats/risk-colors");
+      const url = libelle_quantume 
+        ? `/stats/risk-colors?libelle_quantume=${encodeURIComponent(libelle_quantume)}`
+        : "/stats/risk-colors";
+      const response = await API.get<RiskColorsDistributionResponse>(url);
       return response.data;
     } catch (error) {
       console.error("Erreur lors de la récupération de la distribution des couleurs:", error);

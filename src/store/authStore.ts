@@ -8,6 +8,12 @@ export interface User {
   id: number;
   email: string;
   name?: string;
+  nom?: string;
+  prenom?: string;
+  role?: string;
+  roles?: string[];
+  ur?: string;
+  brigade?: string;
   [key: string]: unknown;
 }
 
