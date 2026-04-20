@@ -58,7 +58,6 @@ export interface InfoDataItem {
 
 interface IndicateurRiskViewProps {
   numIFU: string;
-  infoData?: InfoDataItem[];
 }
 
 /**
@@ -75,8 +74,6 @@ interface IndicatorRow {
 // ========== Composant ==========
 const IndicateurRiskView: React.FC<IndicateurRiskViewProps> = ({
   numIFU,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  infoData,
 }) => {
 
   const [loading, setLoading] = useState(false);

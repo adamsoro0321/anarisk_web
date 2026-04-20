@@ -20,8 +20,8 @@ import {
 } from "@mui/icons-material";
 import {  useState,  useRef } from "react";
 import * as XLSX from 'xlsx';
-// @ts-expect-error - API.js n'a pas de déclaration TypeScript
-import { API } from "../../api/API.js";
+
+import API from "../../services/api.js";
 
 // Palette DGI Burkina Faso
 const dgiColors = {

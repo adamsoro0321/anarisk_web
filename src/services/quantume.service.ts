@@ -3,6 +3,7 @@ import { API } from "./api";
 export interface QuantumeItem {
   id: number;
   libelle: string;
+  status?: string;
   date_creation: string | null;
 }
 
@@ -110,6 +111,11 @@ export class QuantumeService {
 
   static async delete(id: number): Promise<{ success: boolean; message: string }> {
     const response = await API.delete<{ success: boolean; message: string }>(`/quantumes/${id}`);
+    return response.data;
+  }
+
+  static async clore(id: number): Promise<QuantumeSingleResponse> {
+    const response = await API.put<QuantumeSingleResponse>(`/quantumes/${id}/clore`);
     return response.data;
   }
 

@@ -493,7 +493,7 @@ const IndicateurFieldsTable: React.FC<IndicateurFieldsTableProps> = ({
                           sx={{
                             fontFamily: "monospace",
                             fontSize: "0.85rem",
-                            color: dgiColors.accent.dark,
+                            color: dgiColors.accent.main,
                             backgroundColor: alpha(dgiColors.accent.main, 0.05),
                             px: 1,
                             py: 0.5,

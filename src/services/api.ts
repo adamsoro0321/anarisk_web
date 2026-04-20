@@ -13,14 +13,14 @@ import useAuthStore from "../store/authStore";
 
 // ========== CONFIGURATION ==========
 
-const HOST = import.meta.env.VITE_API_HOST || "127.0.0.1";
+const HOST = import.meta.env.VITE_API_URL || "10.3.1.183";
 const PORT = import.meta.env.VITE_API_PORT || 5000;
 const API_VERSION = import.meta.env.VITE_API_VERSION || "v1";
 
 export const baseUrl = `http://${HOST}:${PORT}/api/${API_VERSION}`;
 
 // ========== TYPES ==========
-
+console.log("API Base URL:", baseUrl);
 export interface ApiError {
   success: false;
   message: string;

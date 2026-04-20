@@ -164,7 +164,6 @@ const TaskMonitor: React.FC<TaskMonitorProps> = ({
 
         {/* Informations détaillées */}
         <Grid container spacing={2} sx={{ mb: 2 }}>
-          {/* @ts-expect-error - Grid props work fine at runtime despite TypeScript error */}
           <Grid item xs={6}>
             <Typography variant="caption" color="text.secondary">
               Début
@@ -174,7 +173,6 @@ const TaskMonitor: React.FC<TaskMonitorProps> = ({
             </Typography>
           </Grid>
 
-          {/* @ts-expect-error - Grid props work fine at runtime despite TypeScript error */}
           <Grid item xs={6}>
             <Typography variant="caption" color="text.secondary">
               Fin
@@ -184,7 +182,6 @@ const TaskMonitor: React.FC<TaskMonitorProps> = ({
             </Typography>
           </Grid>
 
-          {/* @ts-expect-error - Grid props work fine at runtime despite TypeScript error */}
           <Grid item xs={6}>
             <Typography variant="caption" color="text.secondary">
               Durée
@@ -194,7 +191,6 @@ const TaskMonitor: React.FC<TaskMonitorProps> = ({
             </Typography>
           </Grid>
 
-          {/* @ts-expect-error - Grid props work fine at runtime despite TypeScript error */}
           <Grid item xs={6}>
             <Typography variant="caption" color="text.secondary">
               ID Tâche

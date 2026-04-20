@@ -21,9 +21,7 @@ import {
 } from "@mui/material";
 import {
   FolderSpecial as FolderSpecialIcon,
-  Folder as FolderIcon,
   FolderOpen as FolderOpenIcon,
-  Description as DescriptionIcon,
   ArrowBack as ArrowBackIcon,
   Refresh as RefreshIcon,
   Search as SearchIcon,
@@ -32,7 +30,6 @@ import {
   AccountTree as AccountTreeIcon,
   Groups as GroupsIcon,
   InsertDriveFile as InsertDriveFileIcon,
-  PictureAsPdf as PictureAsPdfIcon,
   Image as ImageIcon,
   TableChart as TableChartIcon,
   NavigateNext as NavigateNextIcon,
@@ -48,7 +45,6 @@ import type {
   FileInfo,
   ContribuableFiles,
 } from "../../services/fiches.service";
-import useAuthStore from "../../store/authStore";
 
 // Palette DGI Burkina Faso
 const dgiColors = {
@@ -284,7 +280,6 @@ const FichesList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [downloadingBrigade, setDownloadingBrigade] = useState<string | null>(null);
-  const user = useAuthStore((state) => state.user);
   // État de navigation
   const [navigation, setNavigation] = useState<NavigationState>({
     level: "programmes",

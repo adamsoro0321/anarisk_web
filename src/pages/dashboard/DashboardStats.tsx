@@ -14,8 +14,6 @@ import {
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   RemoveCircle as RemoveCircleIcon,
-  People as PeopleIcon,
-  Assessment as AssessmentIcon,
 } from "@mui/icons-material";
 import Plot from "react-plotly.js";
 import StatService, {
@@ -103,7 +101,7 @@ const DashboardStats = () => {
       {/* Graphiques */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* Graphique Pie - Distribution globale */}
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, borderRadius: 3, border: `1px solid ${dgiColors.neutral[200]}`, height: "100%" }}>
             <Typography variant="h6" sx={{ fontWeight: 600, color: dgiColors.neutral[800], mb: 2 }}>
               Répartition Globale des Évaluations
@@ -140,7 +138,7 @@ const DashboardStats = () => {
         </Grid>
 
         {/* Graphique Bar - Contribuables uniques */}
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, borderRadius: 3, border: `1px solid ${dgiColors.neutral[200]}`, height: "100%" }}>
             <Typography variant="h6" sx={{ fontWeight: 600, color: dgiColors.neutral[800], mb: 2 }}>
               Contribuables par Couleur Dominante
@@ -166,8 +164,8 @@ const DashboardStats = () => {
                   margin: { t: 20, b: 60, l: 60, r: 20 },
                   paper_bgcolor: "transparent",
                   plot_bgcolor: "transparent",
-                  xaxis: { title: "" },
-                  yaxis: { title: "Nombre de contribuables" },
+                  xaxis: { title: { text: "" } },
+                  yaxis: { title: { text: "Nombre de contribuables" } },
                   bargap: 0.3,
                 }}
                 config={{ displayModeBar: false, responsive: true }}
@@ -185,7 +183,7 @@ const DashboardStats = () => {
         </Typography>
         <Grid container spacing={2}>
           {riskColorMeta.map((c) => (
-            <Grid size={{ xs: 6, sm: 4, md: 2.4 }} key={c.key}>
+            <Grid item xs={6} sm={4} md={2.4} key={c.key}>
               <Paper
                 elevation={0}
                 sx={{
@@ -223,7 +221,7 @@ const DashboardStats = () => {
           </Typography>
           <Grid container spacing={1}>
             {riskColorMeta.map((c) => (
-              <Grid size={{ xs: 6, sm: 4, md: 2.4 }} key={c.key}>
+              <Grid item xs={6} sm={4} md={2.4} key={c.key}>
                 <Chip
                   icon={<Box sx={{ color: c.color, display: "flex" }}>{c.icon}</Box>}
                   label={`${c.label.split(" ")[0]}: ${StatService.formatNumber(data.unique_contribuables.counts[c.key] || 0, 0)} (${data.unique_contribuables.percentages[c.key] || 0}%)`}

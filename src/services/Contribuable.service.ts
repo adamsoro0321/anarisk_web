@@ -74,18 +74,17 @@ export interface INSDResponse {
 
 /**
  * Données d'un fournisseur ou client d'un contribuable
- * Note: Les noms de champs sont en minuscules car pandas to_dict() les convertit
  */
 export interface FournisseurClientData {
-  num_ifu_client: string;
-  num_ifu_fourn: string;
-  annee_fiscal: number;
-  mois_fiscal: number;
-  tva_deductible: number | null;
-  tva_facture: number | null;
-  id_impot: string | null;
-  pr_ht: number | null;
-  nature_deduction: string | null;
+  NUM_IFU_CLIENT: string;
+  NUM_IFU_FOURN: string;
+  ANNEE_FISCAL: number;
+  MOIS_FISCAL: number;
+  TVA_DEDUCTIBLE: number | null;
+  TVA_FACTURE: number | null;
+  ID_IMPOT: string | null;
+  PR_HT: number | null;
+  NATURE_DEDUCTION: string | null;
 }
 
 /**

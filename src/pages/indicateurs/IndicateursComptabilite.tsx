@@ -23,7 +23,7 @@ const IndicateursComptabilite = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await IndicateurService.getAll();
+      const response = await IndicateurService.getAll({ type: "comptabilite" });
       
       if (response.success) {
         setIndicateurs(response.data);
@@ -117,7 +117,7 @@ const IndicateursComptabilite = () => {
           fontWeight: 600 
         }}
       >
-        Liste des Indicateurs de Risque
+        Liste des Indicateurs de Risque - Comptabilité
       </Typography>
 
       <Paper

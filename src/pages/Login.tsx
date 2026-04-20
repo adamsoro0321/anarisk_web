@@ -31,6 +31,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { object, string } from "yup";
 import useAuthStore from "../store/authStore";
 import dgi_logo from "../assets/dgi_logo.png";
+import { baseUrl } from "../services/api";
 
 
 // Palette DGI Burkina Faso - Couleurs officielles inspirées du drapeau
@@ -487,7 +488,7 @@ const Login = () => {
                   try {
                   
                     const resp = await axios.post(
-                      `${import.meta.env.VITE_API_URL}/api/v1/login`,
+                      `${baseUrl}/login`,
                       values
                     );
 

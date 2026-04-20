@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Box, Typography, Card, alpha,
   Button, CircularProgress, Alert, Divider, FormControl,
-  InputLabel, Select, MenuItem, Chip, LinearProgress, IconButton, Tooltip,
+  InputLabel, Select, MenuItem, Tooltip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  IconButton, Stack, Chip,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
@@ -12,8 +13,10 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import ArticleIcon from '@mui/icons-material/Article';
 import AddIcon from '@mui/icons-material/Add';
+import LockIcon from '@mui/icons-material/Lock';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { dgiColors } from './_dgiColors';
-import QuantumeService, { type QuantumeItem, type TaskItem, type TaskStatusResponse, type QuantumeStatusItem } from '../../services/quantume.service';
+import QuantumeService, { type QuantumeItem, type QuantumeStatusItem } from '../../services/quantume.service';
 import TaskMonitor from '../../components/TaskMonitor';
 import { FormDialog } from './_paramHelpers';
 
@@ -40,11 +43,7 @@ const Parametres: React.FC = () => {
   const [statusLoading, setStatusLoading]           = useState(false);
 
   // --- Tâches en cours ---
-  const [activeTasks, setActiveTasks]             = useState<TaskItem[]>([]);
-  const [tasksLoading, setTasksLoading]           = useState(false);
-  const [currentTaskStatus, setCurrentTaskStatus] = useState<TaskStatusResponse | null>(null);
-  const statusIntervalRef                         = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [revokingId, setRevokingId]               = useState<string | null>(null);
+  const [_activeTasks, setActiveTasks]             = useState<any[]>([]);
 
   // --- Création de quantum ---
   const [createDialog, setCreateDialog] = useState(false);
@@ -74,10 +73,55 @@ const Parametres: React.FC = () => {
     }
   };
 
+  const handleCloreQuantum = async (quantumeId: number, quantumeLibelle: string) => {
+    if (!confirm(`Voulez-vous vraiment clore le quantum « ${quantumeLibelle} » ?`)) {
+      return;
+    }
+    try {
+      const res = await QuantumeService.clore(quantumeId);
+      if (res.success) {
+        setGenSuccess(res.message ?? `Quantum « ${quantumeLibelle} » cloré avec succès.`);
+        setTimeout(() => setGenSuccess(null), 5000);
+        // Rafraîchir la liste et le statut
+        fetchQuantumes();
+        fetchStatus();
+      } else {
+        setGenError(res.message ?? 'Erreur lors de la clôture.');
+      }
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      const message = err?.response?.data?.message || (e instanceof Error ? e.message : 'Erreur lors de la clôture.');
+      setGenError(message);
+    }
+  };
+
+  const handleDeleteQuantum = async (quantumeId: number, quantumeLibelle: string) => {
+    if (!confirm(`Voulez-vous vraiment supprimer le quantum « ${quantumeLibelle} » ?\n\nCette action est irréversible.`)) {
+      return;
+    }
+    try {
+      const res = await QuantumeService.delete(quantumeId);
+      if (res.success) {
+        setGenSuccess(res.message ?? `Quantum « ${quantumeLibelle} » supprimé avec succès.`);
+        setTimeout(() => setGenSuccess(null), 5000);
+        // Rafraîchir la liste et le statut
+        fetchQuantumes();
+        fetchStatus();
+      } else {
+        setGenError(res.message ?? 'Erreur lors de la suppression.');
+      }
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      const message = err?.response?.data?.message || (e instanceof Error ? e.message : 'Erreur lors de la suppression.');
+      setGenError(message);
+    }
+  };
+
   const fetchStatus = useCallback(async () => {
     setStatusLoading(true);
     try {
       const res = await QuantumeService.getStatus();
+      console.log("Status des quantumes", res);
       if (res.success) setQuantumesStatus(res.data);
     } catch { /* ignore */ } finally {
       setStatusLoading(false);
@@ -88,6 +132,7 @@ const Parametres: React.FC = () => {
     setQuantumesLoading(true);
     try {
       const res = await QuantumeService.getAll();
+
       if (res.success) setQuantumes(res.data);
     } catch { /* silently ignore */ } finally {
       setQuantumesLoading(false);
@@ -240,19 +285,20 @@ const Parametres: React.FC = () => {
                 <TableCell align="center" sx={{ fontWeight: 700, color: dgiColors.primary.main }}>Pré-liste</TableCell>
                 <TableCell align="center" sx={{ fontWeight: 700, color: dgiColors.primary.main }}>Programme</TableCell>
                 <TableCell align="center" sx={{ fontWeight: 700, color: dgiColors.primary.main }}>Fiches</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 700, color: dgiColors.primary.main }}>Action</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {statusLoading && quantumesStatus.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                  <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
                     <CircularProgress size={20} />
                   </TableCell>
                 </TableRow>
               )}
               {!statusLoading && quantumesStatus.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 2, color: 'text.secondary' }}>
+                  <TableCell colSpan={5} align="center" sx={{ py: 2, color: 'text.secondary' }}>
                     Aucun quantum disponible
                   </TableCell>
                 </TableRow>
@@ -260,10 +306,29 @@ const Parametres: React.FC = () => {
               {quantumesStatus.map((q) => (
                 <TableRow
                   key={q.id}
-                  sx={{ '&:last-child td': { borderBottom: 0 }, '&:hover': { bgcolor: alpha(dgiColors.primary.main, 0.03) } }}
+                  sx={{ 
+                    '&:last-child td': { borderBottom: 0 }, 
+                    '&:hover': { bgcolor: alpha(dgiColors.primary.main, 0.03) },
+                    bgcolor: q.status === 'close' ? alpha('#d32f2f', 0.05) : q.status === 'en_cours' ? alpha('#2e7d32', 0.05) : 'transparent'
+                  }}
                 >
                   <TableCell>
-                    <Typography variant="body2" fontWeight={600}>{q.libelle}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                      <Typography variant="body2" fontWeight={600}>{q.libelle} </Typography>
+                      {q.status && (
+                        <Chip 
+                          label={q.status === 'close' ? 'Clos' : q.status === 'en_cours' ? 'En cours' : q.status}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: '0.7rem',
+                            bgcolor: q.status === 'close' ? '#d32f2f' : q.status === 'en_cours' ? '#2e7d32' : dgiColors.neutral['300'],
+                            color: '#fff',
+                            fontWeight: 600
+                          }}
+                        />
+                      )}
+                    </Box>
                     {q.date_creation && (
                       <Typography variant="caption" color="text.secondary">
                         {new Date(q.date_creation).toLocaleDateString('fr-FR')}
@@ -315,6 +380,40 @@ const Parametres: React.FC = () => {
                           : <CancelIcon sx={{ color: dgiColors.neutral[300], fontSize: 18 }} />}
                       </Box>
                     </Tooltip>
+                  </TableCell>
+
+                  {/* Actions */}
+                  <TableCell align="center">
+                    <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                      <Tooltip title="Supprimer le quantum">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleDeleteQuantum(q.id, q.libelle)}
+                          sx={{ 
+                            color: 'error.main',
+                            '&:hover': { bgcolor: alpha('#d32f2f', 0.1) }
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={q.status === 'close' ? 'Quantum déjà clos' : 'Clore le quantum'}>
+                        <span>
+                          <IconButton 
+                            size="small"
+                            onClick={() => handleCloreQuantum(q.id, q.libelle)}
+                            disabled={q.status === 'close'}
+                            sx={{ 
+                              color: dgiColors.neutral['700'],
+                              '&:hover': { bgcolor: alpha(dgiColors.neutral['700'], 0.1) },
+                              '&:disabled': { opacity: 0.3 }
+                            }}
+                          >
+                            <LockIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </Stack>
                   </TableCell>
                 </TableRow>
               ))}
@@ -396,10 +495,10 @@ const Parametres: React.FC = () => {
                   {quantumesLoading && (
                     <MenuItem disabled value="">Chargement…</MenuItem>
                   )}
-                  {!quantumesLoading && quantumes.length === 0 && (
-                    <MenuItem disabled value="">Aucun quantum disponible</MenuItem>
+                  {!quantumesLoading && quantumes.filter(q => q.status === 'en_cours').length === 0 && (
+                    <MenuItem disabled value="">Aucun quantum en cours disponible</MenuItem>
                   )}
-                  {quantumes.map((q) => (
+                  {quantumes.filter(q => q.status === 'en_cours').map((q) => (
                     <MenuItem key={q.id} value={q.id}>{q.libelle}</MenuItem>
                   ))}
                 </Select>
@@ -427,7 +526,7 @@ const Parametres: React.FC = () => {
             </Box>
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
               Cette action enclenchera une opération en arrière-plan !
-              <span className='text-danger'> L'opération peut durer de 5 à 10 heures</span>
+              <span className='text-danger'> Cette opération peut durer quelqu'un temps</span>
             </Typography>
           </Box>
 

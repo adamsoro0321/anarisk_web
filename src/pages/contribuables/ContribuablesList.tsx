@@ -11,10 +11,8 @@ import {
   MenuItem,
   Select,
   FormControl,
-  InputLabel,
   Snackbar,
   Card,
-  CardContent,
   Grid,
   Tabs,
   Tab,
@@ -32,10 +30,7 @@ import {
   ViewComfy as ViewComfyIcon,
   ViewColumn as ViewColumnIcon,
   FilterList as FilterListIcon,
-  Download as DownloadIcon,
   TrendingUp as TrendingUpIcon,
-  Assessment as AssessmentIcon,
-  People as PeopleIcon,
   Layers as LayersIcon,
   CloudDownload as CloudDownloadIcon,
   ExpandMore as ExpandMoreIcon,
@@ -44,8 +39,7 @@ import {
   BarChart as BarChartIcon
 } from "@mui/icons-material";
 import { useEffect, useState, useMemo, useCallback } from "react";
-// @ts-expect-error - API.js n'a pas de déclaration TypeScript
-import { API } from "../../api/API.js";
+
 import QuantumeService, { type QuantumeItem } from "../../services/quantume.service";
 import { 
   DataGrid,
@@ -72,6 +66,7 @@ import {
   Filler
 } from 'chart.js';
 import ContribuableDetailModal from "../../components/modals/ContribuableDetailModal.js";
+import API from "../../services/api.js";
 
 // Enregistrer les composants Chart.js
 ChartJS.register(
@@ -124,32 +119,27 @@ const RiskIndicatorCell = ({ value }: { value: number | string | boolean | undef
   const normalizedValue = String(value || '').toLowerCase().trim();
   
   // Déterminer le type de risque
-  let riskType: 'rouge' | 'jaune' | 'vert' | 'non-disponible';
   let label: string;
   let bgColor: string;
   let textColor: string;
   let icon: React.ReactNode;
   
   if (normalizedValue === 'rouge' || normalizedValue === 'red') {
-    riskType = 'rouge';
     label = 'Risque élevé';
     bgColor = alpha(dgiColors.secondary.main, 0.5);
     textColor = dgiColors.secondary.main;
     icon = <WarningIcon fontSize="small" />;
   } else if (normalizedValue === 'jaune' || normalizedValue === 'yellow') {
-    riskType = 'jaune';
     label = 'Risque moyen';
     bgColor = alpha(dgiColors.accent.main, 0.5);
     textColor = dgiColors.accent.main;
     icon = <WarningIcon fontSize="small" />;
   } else if (normalizedValue === 'vert' || normalizedValue === 'green') {
-    riskType = 'vert';
     label = 'Conforme';
     bgColor = alpha(dgiColors.primary.main, 0.5);
     textColor = dgiColors.primary.main;
     icon = <CheckCircleIcon fontSize="small" />;
   } else {
-    riskType = 'non-disponible';
     label = 'Non disponible';
     bgColor = alpha(dgiColors.neutral[500], 0.1);
     textColor = dgiColors.neutral[700];
@@ -161,7 +151,7 @@ const RiskIndicatorCell = ({ value }: { value: number | string | boolean | undef
       <Chip
         size="small"
         label={label}
-        icon={icon}
+        icon={icon || undefined}
         sx={{
           backgroundColor: 'transparent',
           color: textColor,
@@ -222,7 +212,7 @@ const CustomColumnsButton = () => {
   const apiRef = useGridApiContext();
 
   const handleClick = () => {
-    apiRef.current.showPreferences('columns');
+    apiRef.current.showPreferences('columnsPanel' as any);
   };
 
   return (
@@ -254,7 +244,7 @@ const CustomFiltersButton = () => {
   const apiRef = useGridApiContext();
 
   const handleClick = () => {
-    apiRef.current.showPreferences('filters');
+    apiRef.current.showPreferences('filters' as any);
   };
 
   return (
@@ -449,7 +439,7 @@ const CustomToolbar = () => {
 const ContribuablesList = () => {
   const [riskData, setRiskData] = useState<RiskDataRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
 
   const [quantume, setQuantume] = useState<QuantumeItem[]>([]);
   const [selectedQuantume, setSelectedQuantume] = useState<number | string>('');
@@ -759,18 +749,20 @@ const handleDownloadRiskData = useCallback(async (quantumeId: number | string) =
     const totalGap2 = riskData.reduce((sum, r) => sum + (r.GAP_IND_2 || 0), 0);
     
     // Répartition par régime
-    const regimeDistribution = riskData.reduce((acc: any, r) => {
+    const regimeDistribution: any = {};
+    for (const r of riskData) {
       const regime = r.CODE_REG_FISC || 'Non défini';
-      acc[regime] = (acc[regime] || 0) + 1;
-      return acc;
-    }, {});
+      // @ts-ignore
+      regimeDistribution[regime] = (regimeDistribution[regime] || 0) + 1;
+    }
     
     // Répartition par structure
-    const structureDistribution = riskData.reduce((acc: any, r) => {
+    const structureDistribution: any = {};
+    for (const r of riskData) {
       const structure = r.STRUCTURES || 'Non défini';
-      acc[structure] = (acc[structure] || 0) + 1;
-      return acc;
-    }, {});
+      // @ts-ignore
+      structureDistribution[structure] = (structureDistribution[structure] || 0) + 1;
+    }
     
     // Top contributeurs à risque
     const topRiskyContribuables = [...riskData]
@@ -820,9 +812,9 @@ const handleDownloadRiskData = useCallback(async (quantumeId: number | string) =
         data: [
           dashboardStats.avgScore1,
           dashboardStats.avgScore2,
-          riskData.reduce((sum, r) => sum + (r.SCORE_IND_3 || 0), 0) / riskData.length || 0,
-          riskData.reduce((sum, r) => sum + (r.SCORE_IND_4 || 0), 0) / riskData.length || 0,
-          riskData.reduce((sum, r) => sum + (r.SCORE_IND_5 || 0), 0) / riskData.length || 0
+          riskData.reduce((sum, r) => sum + Number(r.SCORE_IND_3 || 0), 0) / riskData.length || 0,
+          riskData.reduce((sum, r) => sum + Number(r.SCORE_IND_4 || 0), 0) / riskData.length || 0,
+          riskData.reduce((sum, r) => sum + Number(r.SCORE_IND_5 || 0), 0) / riskData.length || 0
         ],
         backgroundColor: [
           alpha(dgiColors.secondary.light, 0.7),  // Rouge plus clair
@@ -866,10 +858,10 @@ const handleDownloadRiskData = useCallback(async (quantumeId: number | string) =
         data: [
           dashboardStats.totalGap1 / 1000000,
           dashboardStats.totalGap2 / 1000000,
-          riskData.reduce((sum, r) => sum + (r.GAP_IND_3 || 0), 0) / 1000000,
-          riskData.reduce((sum, r) => sum + (r.GAP_IND_4 || 0), 0) / 1000000,
-          riskData.reduce((sum, r) => sum + (r.GAP_IND_5 || 0), 0) / 1000000,
-          riskData.reduce((sum, r) => sum + (r.GAP_IND_8 || 0), 0) / 1000000
+          riskData.reduce((sum, r) => sum + Number(r.GAP_IND_3 || 0), 0) / 1000000,
+          riskData.reduce((sum, r) => sum + Number(r.GAP_IND_4 || 0), 0) / 1000000,
+          riskData.reduce((sum, r) => sum + Number(r.GAP_IND_5 || 0), 0) / 1000000,
+          riskData.reduce((sum, r) => sum + Number(r.GAP_IND_8 || 0), 0) / 1000000
         ],
         backgroundColor: alpha(dgiColors.secondary.light, 0.5),  // Rouge plus clair
         borderColor: dgiColors.secondary.light,  // Rouge plus clair
@@ -1491,7 +1483,6 @@ const handleDownloadRiskData = useCallback(async (quantumeId: number | string) =
         }}
       >
         <DataGrid
-          showToolbar
           localeText={frFR.components.MuiDataGrid.defaultProps.localeText}
           rows={riskData}
           columns={allColumns}
@@ -1529,31 +1520,7 @@ const handleDownloadRiskData = useCallback(async (quantumeId: number | string) =
                 fileName: `contribuables-risques-${new Date().toISOString().split('T')[0]}`,
                 utf8WithBom: true 
               }
-            },
-            columnsButton: {
-              sx: {
-                color: '#fff',
-                '& .MuiButton-startIcon svg': { color: '#fff' },
-              }
-            },
-            filterButton: {
-              sx: {
-                color: '#fff',
-                '& .MuiButton-startIcon svg': { color: '#fff' },
-              }
-            },
-            densitySelector: {
-              sx: {
-                color: '#fff',
-                '& .MuiButton-startIcon svg': { color: '#fff' },
-              }
-            },
-            exportButton: {
-              sx: {
-                color: '#fff',
-                '& .MuiButton-startIcon svg': { color: '#fff' },
-              }
-            },
+            }
           }}
           sx={{ 
             height: 600,
@@ -1744,7 +1711,7 @@ const handleDownloadRiskData = useCallback(async (quantumeId: number | string) =
                           borderColor: dgiColors.neutral[200],
                           borderWidth: 1,
                           callbacks: {
-                            label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(1)}M FCFA`
+                            label: (context) => `${context.dataset.label}: ${context.parsed.y?.toFixed(1) ?? '0'}M FCFA`
                           }
                         }
                       },

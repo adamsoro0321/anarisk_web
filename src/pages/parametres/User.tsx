@@ -95,13 +95,7 @@ const Users = () => {
     loadUsers();
   };
 
-  // Calcul des statistiques
-  const stats = {
-    total: users.length,
-    actifs: users.filter((u) => u.status === "active").length,
-    inactifs: users.filter((u) => u.status === "inactive" || u.status === "suspended").length,
-    admins: users.filter((u) => u.roles.includes("admin")).length,
-  };
+  // Rendu du composant
 
   // Définition des colonnes du DataGrid
   const columns: GridColDef[] = [

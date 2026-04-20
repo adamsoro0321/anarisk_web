@@ -51,7 +51,6 @@ import StatService, {
   type ContribuableIndicator,
   type SearchResult,
 } from "../../services/stat.service";
-import useAuthStore from "../../store/authStore";
 
 // Palette DGI Burkina Faso
 const dgiColors = {
@@ -349,7 +348,7 @@ const ContribuableDetail = () => {
 
           <Grid container spacing={3}>
             {/* Informations générales */}
-            <Grid size={{ xs: 12, md: 6 }}>
+            <Grid item xs={12} md={6}>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 {info.STRUCTURES && (
                   <Typography variant="body2">
@@ -375,9 +374,9 @@ const ContribuableDetail = () => {
             </Grid>
 
             {/* Statistiques rapides */}
-            <Grid size={{ xs: 12, md: 6 }}>
+            <Grid item xs={12} md={6}>
               <Grid container spacing={2}>
-                <Grid size={{ xs: 6 }}>
+                <Grid item xs={6}>
                   <Paper
                     sx={{
                       p: 2,
@@ -394,7 +393,7 @@ const ContribuableDetail = () => {
                     </Typography>
                   </Paper>
                 </Grid>
-                <Grid size={{ xs: 6 }}>
+                <Grid item xs={6}>
                   <Paper
                     sx={{
                       p: 2,
@@ -411,7 +410,7 @@ const ContribuableDetail = () => {
                     </Typography>
                   </Paper>
                 </Grid>
-                <Grid size={{ xs: 4 }}>
+                <Grid item xs={4}>
                   <Box sx={{ textAlign: "center" }}>
                     <Chip
                       icon={<ErrorIcon />}
@@ -427,7 +426,7 @@ const ContribuableDetail = () => {
                     </Typography>
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 4 }}>
+                <Grid item xs={4}>
                   <Box sx={{ textAlign: "center" }}>
                     <Chip
                       icon={<WarningIcon />}
@@ -443,7 +442,7 @@ const ContribuableDetail = () => {
                     </Typography>
                   </Box>
                 </Grid>
-                <Grid size={{ xs: 4 }}>
+                <Grid item xs={4}>
                   <Box sx={{ textAlign: "center" }}>
                     <Chip
                       icon={<CheckCircleIcon />}
@@ -477,7 +476,7 @@ const ContribuableDetail = () => {
       <Grid container spacing={3}>
         {/* Distribution des risques */}
         {pieData && (
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid item xs={12} md={6}>
             <Card sx={{ borderRadius: 3, border: `1px solid ${dgiColors.neutral[200]}`, height: "100%" }}>
               <CardContent>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
@@ -514,7 +513,7 @@ const ContribuableDetail = () => {
 
         {/* Top scores */}
         {barData && (
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid item xs={12} md={6}>
             <Card sx={{ borderRadius: 3, border: `1px solid ${dgiColors.neutral[200]}`, height: "100%" }}>
               <CardContent>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
@@ -537,7 +536,7 @@ const ContribuableDetail = () => {
                     layout={{
                       autosize: true,
                       margin: { t: 10, b: 40, l: 120, r: 40 },
-                      xaxis: { title: "Score" },
+                      xaxis: { title: { text: "Score" } },
                       yaxis: { automargin: true },
                       paper_bgcolor: "transparent",
                       plot_bgcolor: "transparent",
@@ -553,7 +552,7 @@ const ContribuableDetail = () => {
 
         {/* Évolution temporelle */}
         {timelineData && (
-          <Grid size={{ xs: 12 }}>
+          <Grid item xs={12}>
             <Card sx={{ borderRadius: 3, border: `1px solid ${dgiColors.neutral[200]}` }}>
               <CardContent>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
@@ -592,9 +591,9 @@ const ContribuableDetail = () => {
                       autosize: true,
                       margin: { t: 30, b: 50, l: 60, r: 60 },
                       barmode: "stack",
-                      xaxis: { title: "Année", tickformat: "d" },
-                      yaxis: { title: "Score Total", side: "left" },
-                      yaxis2: { title: "Nombre de Risques", side: "right", overlaying: "y" },
+                      xaxis: { title: { text: "Année" }, tickformat: "d" },
+                      yaxis: { title: { text: "Score Total" }, side: "left" },
+                      yaxis2: { title: { text: "Nombre de Risques" }, side: "right", overlaying: "y" },
                       legend: { orientation: "h", y: 1.1 },
                       paper_bgcolor: "transparent",
                       plot_bgcolor: "transparent",

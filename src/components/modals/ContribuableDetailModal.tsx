@@ -14,7 +14,7 @@ import { useCallback, useEffect, useState, useMemo } from 'react';
 import ContribuableService, { type ProgrammeResponse, type CreateProgrammeResponse, type ClientResponse, type FournisseurResponse } from '../../services/Contribuable.service';
 import CytoscapeComponent from 'react-cytoscapejs';
 import DgdComponent, { type DGDData } from '../dgdComponent';
-import IndicateurRiskView, { type InfoDataItem } from '../IndicateurRiskView';
+import IndicateurRiskView from '../IndicateurRiskView';
 import BrigadeService, { type BrigadeItem } from '../../services/brigade.service';
 import QuantumeService, { type QuantumeItem } from '../../services/quantume.service';
 interface ContribuableDetailModalProps {
@@ -190,7 +190,7 @@ const ContribuableDetailModal: React.FC<ContribuableDetailModalProps> = ({ open,
 
   // Préparer les éléments pour le graphe des fournisseurs (fournisseurs du contribuable)
   const elementsClients = useMemo(() => {
-    const elements = [];
+    const elements: any[] = [];
     
     // Vérifier que numIFU est valide
     if (!numIFU || numIFU.trim() === '') {
@@ -211,11 +211,11 @@ const ContribuableDetailModal: React.FC<ContribuableDetailModalProps> = ({ open,
       const fournisseursMap = new Map<string, { total: number; count: number }>();
       
       clientsData.data.forEach((item) => {
-        const fournisseurIfu = item.num_ifu_fourn;
+        const fournisseurIfu = item.NUM_IFU_FOURN;
         // Ignorer les IFU invalides ou vides
         if (!fournisseurIfu || typeof fournisseurIfu !== 'string' || fournisseurIfu.trim() === '' || fournisseurIfu === '0') return;
         
-        const amount = item.pr_ht || 0;
+        const amount = item.PR_HT || 0;
         
         if (fournisseursMap.has(fournisseurIfu)) {
           const existing = fournisseursMap.get(fournisseurIfu)!;
@@ -253,7 +253,7 @@ const ContribuableDetailModal: React.FC<ContribuableDetailModalProps> = ({ open,
 
   // Préparer les éléments pour le graphe des clients (clients du contribuable)
   const elementsFournisseurs = useMemo(() => {
-    const elements = [];
+    const elements: any[] = [];
     
     // Vérifier que numIFU est valide
     if (!numIFU || numIFU.trim() === '') {
@@ -274,11 +274,11 @@ const ContribuableDetailModal: React.FC<ContribuableDetailModalProps> = ({ open,
       const clientsMap = new Map<string, { total: number; count: number }>();
       
       fournisseursData.data.forEach((item) => {
-        const clientIfu = item.num_ifu_client;
+        const clientIfu = item.NUM_IFU_CLIENT;
         // Ignorer les IFU invalides ou vides
         if (!clientIfu || typeof clientIfu !== 'string' || clientIfu.trim() === '' || clientIfu === '0') return;
         
-        const amount = item.pr_ht || 0;
+        const amount = item.PR_HT || 0;
         
         if (clientsMap.has(clientIfu)) {
           const existing = clientsMap.get(clientIfu)!;
@@ -427,7 +427,6 @@ const ContribuableDetailModal: React.FC<ContribuableDetailModalProps> = ({ open,
           const response = await ContribuableService.getDouaneData(numIFU);
           const data =  response?.data
          
-          console.log("douanne  1",data)
           setDouaneData(data);
         } catch (err: unknown) {
           setDouaneError(err instanceof Error ? err.message : 'Erreur lors du chargement des données douanières');
@@ -686,33 +685,9 @@ const TabPanel = (props: TabPanelProps) => {
                         {/* Onglet 1: Fiche Contribuable */}
                         <TabPanel value={currentTab} index={1}>
                             {contribuable ? (() => {
-                                // Fonction utilitaire pour formater les dates
-                                const formatDate = (dateString?: string): string => {
-                                    if (!dateString) return 'N/A';
-                                    try {
-                                        return new Date(dateString).toLocaleDateString('fr-FR');
-                                    } catch {
-                                        return 'N/A';
-                                    }
-                                };
-
-                                // Préparation des données d'informations générales
-                                const infoData: InfoDataItem[] = [
-                                    { label: 'Raison Sociale', value: contribuable?.info?.NOM_MINEFID || 'N/A' },
-                                    { label: 'Numéro IFU', value: numIFU || 'N/A' },
-                                    { label: 'Régime Fiscal', value: contribuable?.info?.CODE_REG_FISC || 'N/A' },
-                                    { label: 'Secteur d\'Activité', value: contribuable?.info?.CODE_SECT_ACT || 'N/A' },
-                                    { label: 'État', value: contribuable?.info?.ETAT || 'N/A' },
-                                    { label: 'Structure', value: contribuable?.info?.STRUCTURES || 'N/A' },
-                                    { label: 'Date Dernier Avis', value: formatDate(contribuable?.info?.DATE_DERNIERE_AVIS) },
-                                    { label: 'Date Dernière VG', value: formatDate(contribuable?.info?.DATE_DERNIERE_VG) },
-                                    { label: 'Date Dernière VP', value: formatDate(contribuable?.info?.DATE_DERNIERE_VP) },
-                                ];
-
                                 return (
                                     <IndicateurRiskView 
                                         numIFU={numIFU}
-                                        infoData={infoData} 
                                     />
                                 );
                             })() : (

@@ -22,12 +22,10 @@ import {
   Paper,
 } from "@mui/material";
 import {
-  People as PeopleIcon,
-  Assessment as AssessmentIcon,
-  Dashboard as DashboardIcon,
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
+  Assessment as AssessmentIcon,
 } from "@mui/icons-material";
 import Plot from "react-plotly.js";
 import StatService, {
@@ -36,7 +34,6 @@ import StatService, {
   type IndicatorDistributionResponse,
 } from "../../services/stat.service";
 import QuantumeService, { type QuantumeItem } from "../../services/quantume.service";
-import useAuthStore from "../../store/authStore";
 
 // Palette DGI Burkina Faso
 const dgiColors = {
@@ -61,8 +58,7 @@ const Dashboard = () => {
   // États pour les données
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState<GlobalStats | null>(null);
-  const user = useAuthStore((state) => state.user); // Forcer la réévaluation du composant lors du changement d'utilisateur
+  const [_stats, setStats] = useState<GlobalStats | null>(null);
   
   // États pour les quantums
   const [quantumes, setQuantumes] = useState<QuantumeItem[]>([]);
@@ -170,40 +166,7 @@ const Dashboard = () => {
     fetchIndicatorData();
   }, [selectedIndicator, selectedQuantume, quantumes]);
 
-  // Cartes statistiques
-  const getStatsCards = () => {
-    if (!stats) {
-      return [
-        { title: "Contribuables", value: "-", icon: <PeopleIcon />, color: dgiColors.primary.main },
-        { title: "Indicateurs", value: "-", icon: <AssessmentIcon />, color: dgiColors.accent.main },
-        { title: "Colonnes", value: "-", icon: <DashboardIcon />, color: dgiColors.primary.light },
-      ];
-    }
-
-    return [
-      {
-        title: "Contribuables",
-        value: StatService.formatNumber(stats.total_contribuables, 0),
-        icon: <PeopleIcon />,
-        color: dgiColors.primary.main,
-      },
-      {
-        title: "Indicateurs",
-        value: indicators.length.toString(),
-        icon: <AssessmentIcon />,
-        color: dgiColors.accent.main,
-      },
-      {
-        title: "Colonnes Analysées",
-        value: stats.columns.length.toString(),
-        icon: <DashboardIcon />,
-        color: dgiColors.primary.light,
-      },
-    ];
-  };
-
-  //const statsCards = getStatsCards();
-
+  // Rendu du composant
   return (
     <Box>
       {/* Titre de la page */}
@@ -297,7 +260,7 @@ const Dashboard = () => {
           ) : indicatorData ? (
             <Grid container spacing={3}>
               {/* Graphique Pie */}
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid item xs={12} md={6}>
                 <Box sx={{ height: 350 }}>
                   <Plot
                     data={[
@@ -345,11 +308,11 @@ const Dashboard = () => {
               </Grid>
 
               {/* Statistiques détaillées */}
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid item xs={12} md={6}>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2, height: "100%", justifyContent: "center" }}>
                   {/* Cartes de comptage */}
                   <Grid container spacing={2}>
-                    <Grid size={{ xs: 4 }}>
+                    <Grid item xs={4}>
                       <Paper
                         sx={{
                           p: 2,
@@ -368,7 +331,7 @@ const Dashboard = () => {
                         </Typography>
                       </Paper>
                     </Grid>
-                    <Grid size={{ xs: 4 }}>
+                    <Grid item xs={4}>
                       <Paper
                         sx={{
                           p: 2,
@@ -387,7 +350,7 @@ const Dashboard = () => {
                         </Typography>
                       </Paper>
                     </Grid>
-                    <Grid size={{ xs: 4 }}>
+                    <Grid item xs={4}>
                       <Paper
                         sx={{
                           p: 2,
@@ -429,7 +392,7 @@ const Dashboard = () => {
 
               {/* Tableau des top risques pour cet indicateur */}
               {indicatorData.top_risks && indicatorData.top_risks.length > 0 && (
-                <Grid size={{ xs: 12 }}>
+                <Grid item xs={12}>
                   <Typography variant="subtitle1" fontWeight={600} color={dgiColors.neutral[800]} sx={{ mb: 2, mt: 2 }}>
                     Top 10 Contribuables à Risque pour cet Indicateur
                   </Typography>
